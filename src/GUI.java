@@ -1,6 +1,7 @@
 import java.awt.BorderLayout;
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.FileDialog;
 import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
 import java.awt.Point;
@@ -60,22 +61,20 @@ public class GUI extends JFrame
 	public JPanel data;
 	public ImagePanel ip;
 	
-	public JButton[] measureButtons = new JButton[4];
-	
-	public JButton moveButton;
-	
+	public JButton[] measureButtons = new JButton[4];	
+	public JButton moveButton;	
 	public int mode = 0;
 	
 	public JLabel positionLabel;
 	public JLabel ratioLabel;
 	public JLabel statusBar;
-	public JComboBox zoomCtrl;
+	public JComboBox<String> zoomCtrl;
 	public JTable table;
 	
 	public int tableIndex = 0;
 		
 	public boolean movingMode = false;	
-	public double zoomStep = 0.1;	
+	public double zoomStep = 0.1;	// The increase in zoom (1 = 100%) per scroll increment
 	
 	private KeyboardFocusManager manager;
 	private MyDispatcher keyDispatcher;
@@ -84,18 +83,22 @@ public class GUI extends JFrame
 	{
 		super("Photo Measurer");
 		
-		// Setting content panes and panels
+		// Initialize panels
 
 		content = new JPanel(new BorderLayout());
 		controls = new JPanel(new BorderLayout());
 		stats = new JPanel();
 		data = new JPanel();
-		ip = new ImagePanel(this);				
+		ip = new ImagePanel(this);			
+		
+		// Add panels to content pane
 
 		content.add(ip, BorderLayout.CENTER);		
 		content.add(controls, BorderLayout.EAST);
 		content.add(stats, BorderLayout.SOUTH);
 		content.add(data, BorderLayout.WEST);
+		
+		// Add stuff to panels
 		
 		initControlPanel();
 		initStatsPanel();
@@ -105,9 +108,13 @@ public class GUI extends JFrame
 		setContentPane(content);
 		revalidate();
 		
+		// Set up keyboard stuff
+		
 		manager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
 		keyDispatcher = new MyDispatcher();
 		manager.addKeyEventDispatcher(keyDispatcher);
+		
+		// Open the window
 		
 		setSize(720, 480);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -115,6 +122,17 @@ public class GUI extends JFrame
 		setVisible(true);
 	}
 
+	/**
+	 * Initializes the control panel, which contains the following buttons:
+	 * <ul>
+	 * <li>Load	- Opens JFileChooser to open image from file
+	 * <li>Angle - Mark three dots to measure the angle between them
+	 * <li>Primer - Set the pixel to distance ratio
+	 * <li>Ruler - Measures distance
+	 * <li>Move - Click and drag to navigate around image
+	 * <li>Clear - Empties table
+	 * </ul>
+	 */
 	private void initControlPanel()
 	{	
 		controls.setLayout(new BoxLayout(controls, BoxLayout.PAGE_AXIS));
@@ -150,6 +168,14 @@ public class GUI extends JFrame
 		controls.add(button);
 	}
 
+	/**
+	 * Initializes the stats panel, which contains the following:
+	 * <ul>
+	 * <li>Status bar (for messages etc.)
+	 * <li>Zoom JComboBox
+	 * <li>Pixel coordinates of mouse 
+	 * </ul>
+	 */
 	private void initStatsPanel()
 	{
 		JPanel stats1 = new JPanel();
@@ -166,7 +192,7 @@ public class GUI extends JFrame
 		stats1.add(new JLabel("Zoom (%)"));
 		
 		String[] patternExamples = {"500", "400", "300", "200", "150", "100", "75", "50", "25", "10"};
-		zoomCtrl = new JComboBox(patternExamples);
+		zoomCtrl = new JComboBox<String>(patternExamples);
 		zoomCtrl.setPreferredSize(new Dimension (56, 20));
 		zoomCtrl.setEditable(true);
 		zoomCtrl.setSelectedIndex(5);
@@ -180,6 +206,8 @@ public class GUI extends JFrame
 		stats2.add(statusBar);
 	}
 
+	/** Initializes the image panel, which holds and draws the image.
+	 */
 	private void initImagePanel()
 	{
 		ip.addMouseListener (new MyMouseListener());
@@ -187,6 +215,8 @@ public class GUI extends JFrame
 		ip.addMouseWheelListener (new MyMouseListener());
 	}
 	
+	/** Initializes the data panel, which contains a table that stores measurements. 
+	 */
 	private void initDataPanel()
 	{	
 		table = new JTable(tableSize, 1);	
@@ -195,7 +225,12 @@ public class GUI extends JFrame
 		data.add(table, BorderLayout.CENTER);		
 	}
 	
-	private void setZoom(String value)
+	/** Tries to set the specified zoom. If invalid, sets the JComboBox
+	 * to the current zoom.
+	 * 
+	 * @param value		desired zoom in percentage
+	 */
+	public void setZoom(String value)
 	{
 		try
 		{
@@ -207,7 +242,13 @@ public class GUI extends JFrame
 		}
 	}
 	
-	private void setZoom(Point center, double newZoom)
+	/** Sets the new zoom, keeping the specified point on the screen stationary.
+	 * Ignores zooms <= 1%.
+	 * 
+	 * @param center	screen coordinates of the focus
+	 * @param newZoom	desired new zoom (1 = 100%)
+	 */
+	public void setZoom(Point center, double newZoom)
 	{					
 		if (newZoom > 0.01)
 		{
@@ -227,6 +268,8 @@ public class GUI extends JFrame
 		}		
 	}
 	
+	/** Reads image from file and loads it into ImagePanel. 
+	 */
 	public void loadFile()
 	{	
 		// Set up JFileChooser
@@ -248,9 +291,11 @@ public class GUI extends JFrame
 			directory = load;
 			if (load.canRead())			
 				ip.loadImage(load);			
-		}		
+		}	
 	}
 	
+	/** @param move true = click & drag to navigate; false = no navigation
+	 */
 	public void setMovingMode(boolean move)
 	{
 		if (move)
@@ -265,6 +310,11 @@ public class GUI extends JFrame
 		}
 	}
 	
+	/** NONE = 0;<br>
+	 * ANGLE = 1;<br>
+ 	 * PRIMER = 2;<br>
+	 * RULER = 3;<br>
+	 */
 	public void setMeasuringMode(int newMode)
 	{
 		if (mode == newMode || newMode == NONE)
@@ -283,11 +333,10 @@ public class GUI extends JFrame
 			for (int i = 1; i <= 3; i++)
 				if (i != mode)
 					measureButtons[i].setEnabled(false);
-		}
-		
+		}		
 	}
 	
-	public void updateMove(Point now)
+	private void updateMove(Point now)
 	{
 		int dx = now.x - ip.click.x;
 		int dy = now.y - ip.click.y;
@@ -296,11 +345,16 @@ public class GUI extends JFrame
 		ip.translateOffset(dx, dy);
 	}
 	
+	/** @param text	the string to be displayed in the status bar
+	 */
 	public void writeStatus(String text)
 	{
 		statusBar.setText(text);
 	}
 	
+	/** Adds the specified value to the next cell. Resets to top if
+	 * tableIndex exceeds the length of the table.
+	 */
 	public void tableAppend(double value)
 	{
 		table.getModel().setValueAt(value + "", tableIndex, 0);
@@ -309,11 +363,13 @@ public class GUI extends JFrame
 			tableIndex = 0;	
 	}
 	
+	/** Calls up the JOptionPane to input primer distance. 
+	 */
 	public void promptPrimerDistance()
 	{
 		double pixels = Calculator.findDistance(ip.vertices[0], ip.vertices[1]);
 		
-		String message = "Input the real length of segment (mm): ";
+		String message = "Input the real length of segment: ";
 		String title = "Length Measurement Scalar"; 
 		String value = JOptionPane.showInputDialog(this, message, title, JOptionPane.PLAIN_MESSAGE);
 		try
@@ -370,12 +426,11 @@ public class GUI extends JFrame
 				else if (button.getText().matches("Move|Stop"))
 				{
 					setMovingMode(!movingMode);
-				}
-				
+				}				
 			}
-			else if (parent instanceof JComboBox)
+			else if (parent instanceof JComboBox<?>)
 			{
-				JComboBox cb = (JComboBox)parent;
+				JComboBox<?> cb = (JComboBox<?>)parent;
 				
 				if (cb.equals(zoomCtrl))
 					setZoom((String)cb.getSelectedItem());			
@@ -390,16 +445,16 @@ public class GUI extends JFrame
 		{
 			ip.click = e.getPoint();
 			
-			if (!movingMode)
+			if (!movingMode) // Do not do anything if in moving mode
 			{
-				if (mode != NONE)
+				if (mode != NONE) // If in a measuring mode
 				{
-					if (mode == ANGLE)
+					if (mode == ANGLE) // Reset angle mode after 3 clicks
 					{
 						if (ip.vertexIndex == 3)
 							ip.vertexIndex = 0;
 					}
-					else if (ip.vertexIndex == 2)
+					else if (ip.vertexIndex == 2) // Reset primer or ruler mode after 2 clicks
 						ip.vertexIndex = 0;
 					
 					ip.vertices[ip.vertexIndex] = ip.getImageCoordinates(e.getPoint());
@@ -407,14 +462,14 @@ public class GUI extends JFrame
 					
 					if (mode == ANGLE)
 					{
-						if (ip.vertexIndex == 3)
+						if (ip.vertexIndex == 3) // Determine angle once 3 points are had
 						{
 							tableAppend(Calculator.findAngle(ip.vertices[0], ip.vertices[1], ip.vertices[2]));
 						}
 					}
 					else
 					{
-						if (ip.vertexIndex == 2)
+						if (ip.vertexIndex == 2) // Determine length once 2 points are had
 						{
 							if (mode == RULER)
 							{

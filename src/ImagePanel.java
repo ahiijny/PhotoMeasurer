@@ -15,7 +15,6 @@ public class ImagePanel extends JPanel
 {
 	private GUI parent;
 	
-	private File path;
 	private BufferedImage img = null;
 	
 	private Point offset = new Point();
@@ -31,12 +30,21 @@ public class ImagePanel extends JPanel
 	
 	public Color lineColor = new Color(203, 203, 203);
 	
+	/** Creates a new ImagePanel.
+	 * 
+	 * @param gui	the parent GUI
+	 */
 	public ImagePanel(GUI gui)
 	{
 		parent = gui;
 	}
 
-	public void drawLines(Graphics2D g2)
+	/** Draws the lines of a selection (e.g. angle, ruler)
+	 * if necessary.
+	 * 
+	 * @param g2	the Graphics context in which to paint
+	 */
+	private void drawLines(Graphics2D g2)
 	{		
 		boolean doneMeasuring = false;
 		if (parent.mode == GUI.ANGLE)
@@ -60,6 +68,26 @@ public class ImagePanel extends JPanel
 			g2.drawLine(vertices[index].x, vertices[index].y, pt.x, pt.y);			
 	}
 	
+	/** Converts screen coordinates to pixel coordinates on the image,
+	 * based on current zoom and offset.
+	 * 
+	 * <p><ul>
+	 * <li><code>Zoom</code> specifies a multiplier for pixel size.
+	 * <li><code>Offset</code> specifies the number of <i>screen</i> pixels to add.
+	 * So, if you translate the image leftwards and upwards, offset decreases.
+	 * </ul><p>
+	 * 
+	 * To convert from screen coordinates to image coordinates:
+	 * <ul>
+	 * <li>Take location of mouse (screen coordinates).
+	 * <li>Revert (i.e. subtract) offset. You now have number of screen
+	 * pixels from the image's (0,0) pixel.
+	 * <li>Revert (i.e. divide) zoom. You now have number of image pixels
+	 * from the image's (0,0) pixels; i.e. image coordinates.
+	 * 
+	 * @param screenCoordinates		screen pixels relative to top left of component
+	 * @return image pixel coordinates
+	 */
 	public Point getImageCoordinates(Point screenCoordinates)
 	{
 		Point pt = new Point(screenCoordinates);		
@@ -68,6 +96,26 @@ public class ImagePanel extends JPanel
 		return pt;
 	}
 	
+	/** Converts pixel coordinates on the image to screen coordinates,
+	 * based on current zoom and offset.
+	 * 
+	 * <p><ul>
+	 * <li><code>Zoom</code> specifies a multiplier for pixel size.
+	 * <li><code>Offset</code> specifies the number of <i>screen</i> pixels to add.
+	 * So, if you translate the image rightwards and downwards, offset increases.
+	 * </ul><p>
+	 * 
+	 * To convert from image coordinates to screen coordinates:
+	 * <ul>
+	 * <li>Take image coordinates.
+	 * <li>Apply (i.e. multiply) zoom. You now have number of screen
+	 * pixels from the image's (0,0) pixel.
+	 * <li>Apply (i.e. add) offset. You now have the number of screen pixels
+	 * from the component's (0,0) pixel; i.e. screen coordinates.
+	 * 
+	 * @param imageCoordinates		image pixel coordinates
+	 * @return screen pixels relative to top left of component
+	 */
 	public Point getScreenCoordinates(Point imageCoordinates)
 	{
 		Point pt = new Point(imageCoordinates);		
@@ -104,7 +152,6 @@ public class ImagePanel extends JPanel
 	
 	public void loadImage(File imagePath)
 	{
-		path = imagePath;
 		try 
 		{
 		    img = ImageIO.read(imagePath);
@@ -121,8 +168,10 @@ public class ImagePanel extends JPanel
 	public void paintComponent(Graphics g)
 	{
 		super.paintComponent(g);
-		Graphics2D g2 = (Graphics2D)g;		
-				
+		Graphics2D g2 = (Graphics2D)g;
+		
+		// Set Graphics AffineTransform for current zoom and offset
+		
 		AffineTransform at = AffineTransform.getScaleInstance(zoom, zoom);		
 		AffineTransform at2 = AffineTransform.getTranslateInstance(offset.x, offset.y);
 		at.preConcatenate(at2);
@@ -131,8 +180,6 @@ public class ImagePanel extends JPanel
 		{
 			g2.drawImage(img, 0, 0, null);			
 		}	
-		drawLines(g2);	
-			
+		drawLines(g2);				
 	}
-
 }
