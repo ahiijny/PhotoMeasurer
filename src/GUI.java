@@ -53,7 +53,7 @@ public class GUI extends JFrame
 	public static final int PRIMER = 2;
 	public static final int RULER = 3;
 	
-	private File directory = new File ("."); // initialize dir to current dir
+	private File directory = new File(""); // initialize dir to current dir
 
 	public JPanel content;
 	public JPanel controls;
@@ -272,6 +272,20 @@ public class GUI extends JFrame
 	 */
 	public void loadFile()
 	{	
+		FileDialog fd = new FileDialog(this, "Open");
+		fd.setFile("*.BMP;*.GIF;*.PNG;*.JPG;*.JPEG");
+		fd.setVisible(true);		
+		String path = fd.getFile();	
+		if (path != null)
+		{
+			directory = new File(fd.getDirectory());
+			File load = new File(directory.getAbsoluteFile() + File.separator + path);
+			directory = load;
+			if (load.canRead())			
+				ip.loadImage(load);			
+		}		
+		
+		/*
 		// Set up JFileChooser
 		
 		JFileChooser fc = new JFileChooser ();		
@@ -291,7 +305,7 @@ public class GUI extends JFrame
 			directory = load;
 			if (load.canRead())			
 				ip.loadImage(load);			
-		}	
+		}	*/	
 	}
 	
 	/** @param move true = click & drag to navigate; false = no navigation
