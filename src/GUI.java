@@ -69,6 +69,7 @@ public class GUI extends JFrame
 	public JLabel ratioLabel;
 	public JLabel statusBar;
 	public JComboBox<String> zoomCtrl;
+	public JComboBox<String> renderCtrl;
 	public JTable table;
 	
 	public int tableIndex = 0;
@@ -165,7 +166,7 @@ public class GUI extends JFrame
 		
 		button = new JButton("Clear");
 		button.addActionListener(new MyActionListener());
-		controls.add(button);
+		controls.add(button);	
 	}
 
 	/**
@@ -204,6 +205,19 @@ public class GUI extends JFrame
 		
 		statusBar = new JLabel("Experimental.");
 		stats2.add(statusBar);
+		
+		// Add interpolation control
+		
+		stats3.add(new JLabel("  "));
+		
+		stats3.add(new JLabel("Interpolation"));		
+		String[] patternExamples2 = {"Nearest", "Linear"};
+		renderCtrl = new JComboBox<String>(patternExamples2);
+		renderCtrl.setPreferredSize(new Dimension (64, 20));
+		renderCtrl.setEditable(false);
+		renderCtrl.setSelectedIndex(0);
+		renderCtrl.addActionListener(new MyActionListener());
+		stats3.add(renderCtrl);
 	}
 
 	/** Initializes the image panel, which holds and draws the image.
@@ -447,7 +461,9 @@ public class GUI extends JFrame
 				JComboBox<?> cb = (JComboBox<?>)parent;
 				
 				if (cb.equals(zoomCtrl))
-					setZoom((String)cb.getSelectedItem());			
+					setZoom((String)cb.getSelectedItem());	
+				else if (cb.equals(renderCtrl))
+					ip.setInterpolationMethod(cb.getSelectedIndex());					
 			}
 		}
 	}

@@ -2,6 +2,7 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
+import java.awt.RenderingHints;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -14,6 +15,7 @@ import javax.swing.JPanel;
 public class ImagePanel extends JPanel 
 {
 	private GUI parent;
+	private Object interpolationMethod = RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR;
 	
 	private BufferedImage img = null;
 	
@@ -28,7 +30,8 @@ public class ImagePanel extends JPanel
 	public Point click = new Point();
 	public Point mouse = new Point();
 	
-	public Color lineColor = new Color(203, 203, 203);
+	public Color lineColor = Color.black;
+	public Color xorBack = Color.white;
 	
 	/** Creates a new ImagePanel.
 	 * 
@@ -57,7 +60,8 @@ public class ImagePanel extends JPanel
 			doneMeasuring = true;
 		}
 		
-		g2.setColor(lineColor);
+		g2.setColor(xorBack);
+		g2.setXORMode(lineColor);
 		
 		for (int i = 0; i < vertexIndex - 1; i++)
 			g2.drawLine(vertices[i].x, vertices[i].y, vertices[i+1].x, vertices[i+1].y);
@@ -65,7 +69,9 @@ public class ImagePanel extends JPanel
 		int index = vertexIndex - 1;
 		Point pt = getImageCoordinates(mouse);
 		if (index >= 0 && !doneMeasuring)
-			g2.drawLine(vertices[index].x, vertices[index].y, pt.x, pt.y);			
+			g2.drawLine(vertices[index].x, vertices[index].y, pt.x, pt.y);
+		
+		g2.setPaintMode();
 	}
 	
 	/** Converts screen coordinates to pixel coordinates on the image,
@@ -144,6 +150,28 @@ public class ImagePanel extends JPanel
 		offset.translate(dx, dy);
 	}
 	
+	/** Sets the interpolation method for the rendering. Note: Bicubic is
+	 * much slower than the other two, and doesn't look very different 
+	 * than bilinear.
+	 * <p>
+	 * <ul>
+	 * <li> 0 = Nearest Neighbor
+	 * <li> 1 = Bilinear
+	 * <li> 2 = Bicubic
+	 * </ul>
+	 * 
+	 * @param method	the interpolation method
+	 */
+	public void setInterpolationMethod(int method)
+	{
+		if (method == 1)
+			interpolationMethod = RenderingHints.VALUE_INTERPOLATION_BILINEAR;
+		else if (method == 2)
+			interpolationMethod = RenderingHints.VALUE_INTERPOLATION_BICUBIC;
+		else
+			interpolationMethod = RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR;	
+	}
+	
 	public void setZoom(double newZoom)
 	{
 		if (newZoom > 0)
@@ -169,6 +197,10 @@ public class ImagePanel extends JPanel
 	{
 		super.paintComponent(g);
 		Graphics2D g2 = (Graphics2D)g;
+		
+		// Set Rendering Hints
+		
+		g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, interpolationMethod);
 		
 		// Set Graphics AffineTransform for current zoom and offset
 		
