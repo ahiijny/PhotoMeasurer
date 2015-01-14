@@ -1,8 +1,19 @@
 import java.awt.Point;
+import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
 
-
-public class Calculator 
+public class Calc 
 {
+	public static SimpleDateFormat date = new SimpleDateFormat("yyyy-MM-dd");
+	public static SimpleDateFormat time = new SimpleDateFormat("HH:mm:ss XX");
+	public static DecimalFormat large = new DecimalFormat("0.000E0");
+	public static DecimalFormat larger = new DecimalFormat("0.000000000000E0");
+	public static DecimalFormat small = new DecimalFormat("0.00");
+	public static DecimalFormat smaller = new DecimalFormat("0.0000");	
+	public static DecimalFormat whole = new DecimalFormat("0");
+	public static DecimalFormat precise8 = new DecimalFormat("0.########");
+	public static DecimalFormat precise12 = new DecimalFormat("0.############");
+	
 	/** (http://chemistry.about.com/od/workedchemistryproblems/a/scalar-product-vectors-problem.htm) <p>
 	 * 
 	 * A &middot; B = |A||B|cos &theta; <br>

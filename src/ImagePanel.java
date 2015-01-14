@@ -18,6 +18,7 @@ public class ImagePanel extends JPanel
 	private Object interpolationMethod = RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR;
 	
 	private BufferedImage img = null;
+	public MetadataManager mm;
 	
 	private Point offset = new Point();
 	private double zoom = 1;
@@ -49,16 +50,7 @@ public class ImagePanel extends JPanel
 	 */
 	private void drawLines(Graphics2D g2)
 	{		
-		boolean doneMeasuring = false;
-		if (parent.mode == GUI.ANGLE)
-		{
-			if (vertexIndex == 3)
-				doneMeasuring = true;
-		}
-		else if (vertexIndex == 2)
-		{
-			doneMeasuring = true;
-		}
+		boolean doneMeasuring = vertexIndex >= GUI.pointCount[parent.mode];
 		
 		g2.setColor(xorBack);
 		g2.setXORMode(lineColor);
@@ -140,6 +132,26 @@ public class ImagePanel extends JPanel
 		return zoom;
 	}		
 	
+	public Color getPixel(Point point)
+	{
+		int rgb;
+		
+		try
+		{
+			rgb = img.getRGB(point.x, point.y);
+		}
+		catch (Exception e)
+		{		
+			rgb = Color.gray.getRGB();
+		}
+		
+		return new Color(rgb);
+	}
+	
+	/** Sets the offset in terms of screen pixels.
+	 * 
+	 * @param newOffset
+	 */
 	public void setOffset(Point newOffset)
 	{
 		offset = new Point(newOffset);
@@ -183,10 +195,13 @@ public class ImagePanel extends JPanel
 		try 
 		{
 		    img = ImageIO.read(imagePath);
+		    mm = new MetadataManager(imagePath);
+		    mm.printAllTags();
 		    repaint();
 		} 
 		catch (IOException e) 
 		{
+			mm = null;
 			String message = "Error: could not read " + imagePath + ".";
 			JOptionPane.showMessageDialog(this, message, "Read Error", JOptionPane.ERROR_MESSAGE);
 		}		
