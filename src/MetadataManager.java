@@ -110,7 +110,6 @@ public class MetadataManager
 			focus35 = subifd.getDouble(ExifSubIFDDirectory.TAG_35MM_FILM_EQUIV_FOCAL_LENGTH);
 			zoom = subifd.getDouble(ExifSubIFDDirectory.TAG_DIGITAL_ZOOM_RATIO);
 			date = subifd.getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL);
-			System.out.println(date);
 		}
 		
 		// Extract Panasonic Makenote data

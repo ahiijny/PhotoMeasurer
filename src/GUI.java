@@ -70,22 +70,24 @@ public class GUI extends JFrame
 	
 	public static final int MAKE = 0;
 	public static final int MODEL = 1;
-	public static final int DATE = 2;
-	public static final int TIME = 3;
-	public static final int SHUTTER = 4;
-	public static final int FNUMBER = 5;
-	public static final int FOCUS = 6;
-	public static final int ISO = 7;
-	public static final int BIAS = 8;
-	public static final int ZOOM = 9;
-	public static final int WB_RED = 10;
-	public static final int WB_GREEN = 11;
-	public static final int WB_BLUE = 12;
+	public static final int WIDTH = 2;
+	public static final int HEIGHT = 3;
+	public static final int DATE = 4;
+	public static final int TIME = 5;
+	public static final int SHUTTER = 6;
+	public static final int FNUMBER = 7;
+	public static final int FOCUS = 8;
+	public static final int ISO = 9;
+	public static final int BIAS = 10;
+	public static final int ZOOM = 11;
+	public static final int WB_RED = 12;
+	public static final int WB_GREEN = 13;
+	public static final int WB_BLUE = 14;
 	
 	public static final Font courier = new Font("Courier New", Font.PLAIN, 12);
 	
 	public static final int[] pointCount = {0, 3, 2, 2, 1};
-	public static final String[] specLabels = {"Make", "Model", "Date", "Time", "Shutter(s)", "f/D", "Focus(mm)", "ISO", "Exp Bias(EV)", "Zoom", "WB red", "WB green", "WB blue"};
+	public static final String[] specLabels = {"Make", "Model", "Width", "Height", "Date", "Time", "Shutter(s)", "f/D", "Focus(mm)", "ISO", "Exp Bias(EV)", "Zoom", "WB red", "WB green", "WB blue"};
 	
 	public JTextField[] fieldImSpecs = new JTextField[specLabels.length];
 	
@@ -107,6 +109,7 @@ public class GUI extends JFrame
 	public JComboBox<String> renderCtrl;
 	public JTable table;
 	
+	public JTextField[] fieldXYZ, fieldLambdaCurve, fieldLambdaTrunc; 
 	public JTextField fieldColor, fieldRGB;
 	
 	public int xorBack = Color.white.getRGB();
@@ -304,7 +307,7 @@ public class GUI extends JFrame
 		
 		gridBagSeparator(specs, c, 0, ++c.gridy, 2);
 		
-		// Color sensor
+		// RGB Color sensor
 		
 		JLabel label = new JLabel("Color");
 		label.setFont(courier);		
@@ -320,10 +323,79 @@ public class GUI extends JFrame
 		fieldRGB.setFont(courier);
 		fieldRGB.setEditable(false);		
 		gridBagAdd(specs, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
-		gridBagAdd(specs, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldRGB);
+		gridBagAdd(specs, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldRGB);		
+		fieldRGB.setBackground(Color.white);		
+		
+		// RGB to XYZ
+		
+		gridBagSeparator(specs, c, 0, ++c.gridy, 2);
+		
+		fieldXYZ = new JTextField[3];
+		String[] labels = {"X", "Y", "Z"};
+						
+		for (int i = 0; i < 3; i++)
+		{
+			label = new JLabel(labels[i]);
+			label.setFont(courier);	
+			
+			fieldXYZ[i] = new JTextField(12);
+			fieldXYZ[i].setFont(courier);
+			fieldXYZ[i].setEditable(false);
+			fieldXYZ[i].setBackground(Color.white);
+			
+			gridBagAdd(specs, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
+			gridBagAdd(specs, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldXYZ[i]);
+		}
+		
+		gridBagSeparator(specs, c, 0, ++c.gridy, 2);
+		
+		// Curve Fitting Method
+		
+		label = new JLabel("Wavelength - Curve Fitting Method"); 
+		gridBagAdd(specs, c, 0, ++c.gridy, 2, GridBagConstraints.FIRST_LINE_START, label);
+		
+		fieldLambdaCurve = new JTextField[4];
+		labels = new String[] {"Best \u03BB(nm)", "SE of X fit(nm)", "SE of Y fit(nm)", "SE of Z fit(nm)"};
+		
+		for (int i = 0; i < 4; i++)
+		{
+			label = new JLabel(labels[i]);
+			label.setFont(courier);	
+			
+			fieldLambdaCurve[i] = new JTextField(12);
+			fieldLambdaCurve[i].setFont(courier);
+			fieldLambdaCurve[i].setEditable(false);
+			fieldLambdaCurve[i].setBackground(Color.white);
+			
+			gridBagAdd(specs, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
+			gridBagAdd(specs, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldLambdaCurve[i]);
+		}
+						
+		gridBagSeparator(specs, c, 0, ++c.gridy, 2);
+		
+		// Inverse Truncation Method
+		
+		label = new JLabel("Wavelength - Inverse Truncation Method"); 
+		gridBagAdd(specs, c, 0, ++c.gridy, 2, GridBagConstraints.FIRST_LINE_START, label);
+		
+		fieldLambdaTrunc = new JTextField[2];
+		labels = new String[] {"Best \u03BB(nm)", "SSE of fit"};
+		
+		for (int i = 0; i < 2; i++)
+		{
+			label = new JLabel(labels[i]);
+			label.setFont(courier);	
+			
+			fieldLambdaTrunc[i] = new JTextField(12);
+			fieldLambdaTrunc[i].setFont(courier);
+			fieldLambdaTrunc[i].setEditable(false);
+			fieldLambdaTrunc[i].setBackground(Color.white);
+			
+			gridBagAdd(specs, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
+			gridBagAdd(specs, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldLambdaTrunc[i]);
+		}
 		
 		setColor(Color.white);
-		fieldRGB.setBackground(Color.white);
 		
 		// Wrap specs
 		
@@ -638,9 +710,32 @@ public class GUI extends JFrame
 	
 	public void setColor(Color color)
 	{
+		// Set RGB color
+		
+		int[] rgb = Calc.getIntRGB(color);
     	fieldColor.setBackground(color);
     	fieldColor.setForeground(new Color(xorBack^xorFront^color.getRGB()));
-    	fieldRGB.setText(color.getRed() + "," + color.getGreen() + "," + color.getBlue());
+    	fieldRGB.setText(rgb[0] + "," + rgb[1] + "," + rgb[2]);
+    	
+    	// Get XYZ
+    	
+    	double[] XYZ = Calc.RGBtoXYZ(rgb);
+    	
+    	fieldXYZ[0].setText(Calc.precise8.format(XYZ[0]));
+    	fieldXYZ[1].setText(Calc.precise8.format(XYZ[1]));
+    	fieldXYZ[2].setText(Calc.precise8.format(XYZ[2])); 
+    	
+    	// Get Wavelength
+    	
+    	double[] results = Calc.getPrimaryWavelengthCurveFit(XYZ);
+    	fieldLambdaCurve[0].setText(Calc.whole.format(results[0]));
+    	fieldLambdaCurve[1].setText(Calc.precise8.format(results[1]));
+    	fieldLambdaCurve[2].setText(Calc.precise8.format(results[2]));
+    	fieldLambdaCurve[3].setText(Calc.precise8.format(results[3]));
+    	
+    	results = Calc.getPrimaryWavelengthInverseTruncate(XYZ);
+    	fieldLambdaTrunc[0].setText(Calc.whole.format(results[0]));
+    	fieldLambdaTrunc[1].setText(Calc.precise8.format(results[1]));
 	}
 	
 	public void refresh()
@@ -649,6 +744,8 @@ public class GUI extends JFrame
 		{
 			fieldImSpecs[MODEL].setText(ip.mm.model);
 			fieldImSpecs[MAKE].setText(ip.mm.make);
+			fieldImSpecs[WIDTH].setText(Calc.whole.format(ip.mm.size.width));
+			fieldImSpecs[HEIGHT].setText(Calc.whole.format(ip.mm.size.height));
 			fieldImSpecs[DATE].setText(Calc.date.format(ip.mm.date));
 			fieldImSpecs[TIME].setText(Calc.time.format(ip.mm.date));
 			fieldImSpecs[SHUTTER].setText(Calc.precise8.format(ip.mm.exposure));
@@ -870,6 +967,7 @@ public class GUI extends JFrame
 				else if (name.equals("About"))
 				{
 					String message = "Version: 2015.01.14\n";	
+					message += "Using the CIE 1931 2-deg D65 XYZ color space.";
 					JOptionPane.showMessageDialog(GUI.this, message, "About", JOptionPane.PLAIN_MESSAGE);			
 				}
 			}
