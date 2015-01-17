@@ -11,7 +11,7 @@ public class Calc
 	
 	public static final double[][] XYZtoRGBlin = 
 	{
-		{3.2406, -1.5372, -0.4989},
+		{3.2406, -1.5372, -0.4986},
 		{-0.9689, 1.8758, 0.0415},
 		{0.0557, -0.2040, 1.0570}
 	}
@@ -280,9 +280,9 @@ public class Calc
 		return RGBtoXYZ(rgb_norm);
 	}
 	
-	/** Accepts an nonlinear RGB value scaled to the
-	 * gamma specified by sRGB standards. Converts
-	 * to XYZ. RGB values must be in the range [0..1].
+	/** Accepts an nonlinear gamma scaled RGB value as 
+	 * specified by sRGB standards. Converts to XYZ. 
+	 * RGB values must be in the range [0..1].
 	 * 
 	 * @param rgb
 	 * @return
@@ -291,20 +291,12 @@ public class Calc
 	{
 		// Undo perceptual uniformity
 		
-		double[][] rgb_lin = Matrix.getColumnMatrix(rgb);
-		
-		for (int i = 0; i < 3; i++)
-		{
-			if (rgb[i] <= 0.04045)
-				rgb_lin[i][0] = rgb[i] / 12.92;
-			else
-				rgb_lin[i][0] = Math.pow((rgb[i] + 0.055) / 1.055, 2.4);
-		}
+		double[][] rgb_lin = Matrix.getColumnMatrix(sRGBreverseGamma(rgb));
 		
 		// Transform to XYZ
 		
 		double[][] XYZ = Matrix.multiply(RGBlintoXYZ, rgb_lin);
-		
+				
 		return Matrix.getColumnVector(XYZ);
 	}
 	
@@ -331,6 +323,24 @@ public class Calc
 		
 		// Transform to perceptual uniformity
 		
+		rgb = sRGBgamma(rgb_lin);
+		
+		return rgb;
+	}
+	
+	/** Scales a linear function into an exponential one
+	 * to approximate perceptual uniformity as a function
+	 * of the bit value. The conversion formula is as
+	 * specified by sRGB. The input RGB_lin values should be in
+	 * the range [0..1].
+	 * 
+	 * @param rgb_lin
+	 * @return
+	 */
+	public static double[] sRGBgamma(double[] rgb_lin)
+	{
+		double[] rgb = {0,0,0};
+		
 		for (int i = 0; i < 3; i++)
 		{
 			if (rgb_lin[i] <= 0.0031308)
@@ -338,8 +348,31 @@ public class Calc
 			else
 				rgb[i] = 1.055 * Math.pow(rgb_lin[i], 1/2.4) - 0.055;
 		}
-		
 		return rgb;
+	}
+	
+	/** Undos the gamma of the given nonlinear RGB values.
+	 * This undoes the perceptual uniformity of the brightness
+	 * as a function of the bit value. The conversion formula 
+	 * is as specified by sRGB. The input RGB values should be in
+	 * the range [0..1].
+	 * 
+	 * @param rgb
+	 * @return
+	 */
+	public static double[] sRGBreverseGamma(double[] rgb)
+	{
+		double[] rgb_lin = {0,0,0};
+		
+		for (int i = 0; i < 3; i++)
+		{
+			if (rgb[i] <= 0.04045)
+				rgb_lin[i] = rgb[i] / 12.92;
+			else
+				rgb_lin[i] = Math.pow((rgb[i] + 0.055) / 1.055, 2.4);
+		}
+		
+		return rgb_lin;
 	}
 	
 	/** Converts XYZ to xyY
@@ -402,7 +435,7 @@ public class Calc
 	 * @param XYZ
 	 * @return
 	 */
-	public static double[] getPrimaryWavelengthCurveFit(double[] XYZ)
+	public static double[] getPrimaryWavelengthFitXYZ(double[] XYZ)
 	{		
 		double min_sqerror = Double.POSITIVE_INFINITY;
 		double[] rmse = new double [3];
@@ -459,26 +492,26 @@ public class Calc
 	 * @param XYZ
 	 * @return
 	 */
-	public static double[] getPrimaryWavelengthSatExtrap(double[] XYZ)
+	public static double[] getPrimaryWavelengthInverseTrunc(int[] rgb)
 	{			
-		double[] xyY = XYZtoxyY(XYZ);
-		double[] direction = {xyY[0] - 1/3.0, xyY[1] - 1/3.0};
-		direction = unit(direction);
+		double[] rgb_double = {rgb[0], rgb[1], rgb[2]};
+		rgb_double = scale(rgb_double, 1.0/255); // Scale so that values are in the range [0..1]
+		double[] rgb_lin = sRGBreverseGamma(rgb_double);
 		int bestLambda = -1;
 		
 		double min_sqerror = Double.POSITIVE_INFINITY;
 		
-		// Iterate through CMF white-to-locus table and find best match
+		// Iterate through CMF rgb_lin table and find best match
 		
-		for (int i = 0; i < whiteToLocus.length; i++)
+		for (int i = 0; i < cmf_rgb_lin.length; i++)
 		{
 			// Compute the squared error at this wavelength
 			
 			double sqerror = 0;			
 			
-			for (int j = 0; j < 2; j++)
+			for (int j = 0; j < 3; j++)
 			{
-				double error = whiteToLocus[i][j] - direction[j];
+				double error = cmf_rgb_lin[i][j] - rgb_lin[j];
 				sqerror += error * error;
 			}
 			
@@ -507,7 +540,7 @@ public class Calc
 	 * @param XYZ
 	 * @return
 	 */
-	public static double[] getPrimaryWavelengthInverseTrunc(double[] XYZ)
+	public static double[] getPrimaryWavelengthFitxy(double[] XYZ)
 	{			
 		double[] xyY = XYZtoxyY(XYZ);
 		double[] xy = {xyY[0], xyY[1]};
@@ -515,9 +548,9 @@ public class Calc
 		
 		double min_sqerror = Double.POSITIVE_INFINITY;
 		
-		// Iterate through CMF white-to-locus table and find best match
+		// Iterate through CMF xy table and find best match
 		
-		for (int i = 0; i < whiteToLocus.length; i++)
+		for (int i = 0; i < cmf_xy.length; i++)
 		{
 			// Compute the squared error at this wavelength
 			
@@ -1070,7 +1103,7 @@ public class Calc
 	 * monochromatic color of wavelength nm in xy space for each
 	 * wavelength. 
 	 */
-	public static double[][] whiteToLocus;
+	public static double[][] cmf_rgb_lin;
 	
 	/** The xy chromaticity values of the spectral colours. 
 	 */
@@ -1078,7 +1111,7 @@ public class Calc
 	
 	static
 	{
-		whiteToLocus = new double[cie31_cmf.length][2];
+		cmf_rgb_lin = new double[cie31_cmf.length][2];
 		cmf_xy = new double[cie31_cmf.length][2];
 		
 		for (int i = 0; i < cie31_cmf.length; i++)
@@ -1086,15 +1119,22 @@ public class Calc
 			double[] XYZ = lambdaToXYZ(indexToNM(i));
 			double[] xyY = XYZtoxyY(XYZ);
 			
-			whiteToLocus[i][0] = xyY[0] - 1/3.0;
-			whiteToLocus[i][1] = xyY[1] - 1/3.0;
+			// Record xy coordinates.
 			
 			cmf_xy[i][0] = xyY[0];
 			cmf_xy[i][1] = xyY[1];
 			
-			//println(cmf_xy[i]);
+			// Record linear truncated RGB values.
 			
-			whiteToLocus[i] = unit(whiteToLocus[i]);
+			double[] rgb = XYZtoRGB(XYZ);
+			for (int j = 0; j < 3; j++)
+			{
+				if (rgb[j] < 0)
+					rgb[j] = 0;
+				else if (rgb[j] > 1)
+					rgb[j] = 1;
+			}
+			cmf_rgb_lin[i] = sRGBreverseGamma(rgb);
 		}
 	}
 }

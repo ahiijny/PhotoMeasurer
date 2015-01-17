@@ -70,7 +70,6 @@ public class GUI extends JFrame
 	public static final int PRIMER = 2;
 	public static final int RULER = 3;
 	public static final int COLOR = 4;
-	public static final int WAVELENGTH = 5;
 	
 	// Image Spec Labels
 	
@@ -120,7 +119,7 @@ public class GUI extends JFrame
 	
 	// Color Measurement Panel Fields
 	
-	public JTextField[] fieldXYZ, fieldLambdaCurve, fieldLambdaExtrap, fieldLambdaTrunc; 
+	public JTextField[] fieldXYZ, fieldLambdaFitXYZ, fieldLambdaTrunc, fieldLambdaFitxy; 
 	public JTextField fieldColor, fieldRGB, fieldTableIndex, fieldTableSize;
 	
 	// Listeners
@@ -134,7 +133,7 @@ public class GUI extends JFrame
 
 	public JPanel content;
 	public JPanel paneCenter, paneLeft, paneRight, paneBottom, paneTop, paneSpecWrapper;
-	public JPanel[] panesMeasurement = new JPanel[6];
+	public JPanel[] panesMeasurement = new JPanel[5];
 	public ImagePanel ip;
 	
 	// Control Panel
@@ -174,10 +173,13 @@ public class GUI extends JFrame
 	public double zoomStep = 0.1;	// The increase in zoom (1 = 100%) per scroll increment
 	
 	public Logger logger;
+	
+	public String title;
 
 	public GUI(String title, int width, int height)
 	{
 		super(title);
+		this.title = title;		
 		
 		setJMenuBar(createMenuBar());
 		setContentPane(createContent());
@@ -281,7 +283,7 @@ public class GUI extends JFrame
 	{
 		// Init Measurement Panels
 		
-		for (int i = 0; i < 6; i++)
+		for (int i = 0; i < 5; i++)
 			panesMeasurement[i] = getMeasurementPanel(i);
 		
 		// Create content panes
@@ -447,7 +449,6 @@ public class GUI extends JFrame
 		table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF); 
 		JScrollPane tableWrapper = new JScrollPane(table, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
 		tableWrapper.setPreferredSize(new Dimension(170, 1));
-		System.out.println(tableWrapper.getPreferredSize());
 		
 		table.getTableHeader().setReorderingAllowed(false);				
 				  
@@ -677,7 +678,7 @@ public class GUI extends JFrame
 		c.gridx = c.gridy = 0;
 		c.insets = new Insets(2,4,2,4);
 		c.fill = GridBagConstraints.HORIZONTAL;
-		int cols = 13;
+		int cols = 11;
 				
 		// RGB Color sensor
 		
@@ -703,7 +704,7 @@ public class GUI extends JFrame
 		gridBagSeparator(color, c, 0, ++c.gridy, 2);
 		
 		fieldXYZ = new JTextField[3];
-		String[] labels = {"X", "Y", "Z"};
+		String[] labels = {"X (red)", "Y (green)", "Z (blue)"};
 						
 		for (int i = 0; i < 3; i++)
 		{
@@ -717,16 +718,15 @@ public class GUI extends JFrame
 			
 			gridBagAdd(color, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
 			gridBagAdd(color, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldXYZ[i]);
-		}
-		
+		}		
 		gridBagSeparator(color, c, 0, ++c.gridy, 2);
 		
-		// Curve Fitting Method
+		// XYZ Curve Fitting Method
 		
-		label = new JLabel("Wavelength - Curve Fitting Method"); 
+		label = new JLabel("Wavelength - XYZ Curve Fitting Method"); 
 		gridBagAdd(color, c, 0, ++c.gridy, 2, GridBagConstraints.FIRST_LINE_START, label);
 		
-		fieldLambdaCurve = new JTextField[4];
+		fieldLambdaFitXYZ = new JTextField[4];
 		labels = new String[] {"Best \u03BB(nm)", "SE of X fit(nm)", "SE of Y fit(nm)", "SE of Z fit(nm)"};
 		
 		for (int i = 0; i < 4; i++)
@@ -734,24 +734,48 @@ public class GUI extends JFrame
 			label = new JLabel(labels[i]);
 			label.setFont(fontCourier);	
 			
-			fieldLambdaCurve[i] = new JTextField(cols);
-			fieldLambdaCurve[i].setFont(fontCourier);
-			fieldLambdaCurve[i].setEditable(false);
-			fieldLambdaCurve[i].setBackground(Color.white);
+			fieldLambdaFitXYZ[i] = new JTextField(cols);
+			fieldLambdaFitXYZ[i].setFont(fontCourier);
+			fieldLambdaFitXYZ[i].setEditable(false);
+			fieldLambdaFitXYZ[i].setBackground(Color.white);
 			
 			gridBagAdd(color, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
-			gridBagAdd(color, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldLambdaCurve[i]);
+			gridBagAdd(color, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldLambdaFitXYZ[i]);
 		}
 						
 		gridBagSeparator(color, c, 0, ++c.gridy, 2);
 		
-		// Inverse truncation method
+		// xy fitting method
 	
+		label = new JLabel("Wavelength - xy Fitting Method"); 
+		gridBagAdd(color, c, 0, ++c.gridy, 2, GridBagConstraints.FIRST_LINE_START, label);
+		
+		fieldLambdaFitxy = new JTextField[2];
+		labels = new String[] {"Best \u03BB(nm)", "SSE of fit [0..1]"};
+		
+		for (int i = 0; i < 2; i++)
+		{
+			label = new JLabel(labels[i]);
+			label.setFont(fontCourier);	
+			
+			fieldLambdaFitxy[i] = new JTextField(cols);
+			fieldLambdaFitxy[i].setFont(fontCourier);
+			fieldLambdaFitxy[i].setEditable(false);
+			fieldLambdaFitxy[i].setBackground(Color.white);
+			
+			gridBagAdd(color, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
+			gridBagAdd(color, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldLambdaFitxy[i]);
+		}
+		
+		gridBagSeparator(color, c, 0, ++c.gridy, 2);
+		
+		// Inverse truncation method
+		
 		label = new JLabel("Wavelength - Inverse Truncation Method"); 
 		gridBagAdd(color, c, 0, ++c.gridy, 2, GridBagConstraints.FIRST_LINE_START, label);
 		
 		fieldLambdaTrunc = new JTextField[2];
-		labels = new String[] {"Best \u03BB(nm)", "SSE of fit"};
+		labels = new String[] {"Best \u03BB(nm)", "SSE of fit [0..1]"};
 		
 		for (int i = 0; i < 2; i++)
 		{
@@ -766,32 +790,6 @@ public class GUI extends JFrame
 			gridBagAdd(color, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
 			gridBagAdd(color, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldLambdaTrunc[i]);
 		}
-		
-		gridBagSeparator(color, c, 0, ++c.gridy, 2);
-		
-		// Saturation Extrapolation Method
-		
-		label = new JLabel("Wavelength - Sat Extrapolation Method"); 
-		gridBagAdd(color, c, 0, ++c.gridy, 2, GridBagConstraints.FIRST_LINE_START, label);
-		
-		fieldLambdaExtrap = new JTextField[2];
-		labels = new String[] {"Best \u03BB(nm)", "SSE of fit"};
-		
-		for (int i = 0; i < 2; i++)
-		{
-			label = new JLabel(labels[i]);
-			label.setFont(fontCourier);	
-			
-			fieldLambdaExtrap[i] = new JTextField(13);
-			fieldLambdaExtrap[i].setFont(fontCourier);
-			fieldLambdaExtrap[i].setEditable(false);
-			fieldLambdaExtrap[i].setBackground(Color.white);
-			
-			gridBagAdd(color, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
-			gridBagAdd(color, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldLambdaExtrap[i]);
-		}
-		
-		displayColor(Color.gray);
 		
 		return color;
 	}
@@ -837,9 +835,10 @@ public class GUI extends JFrame
 		c.gridwidth = width;
 		JSeparator sep = new JSeparator();
 		//sep.setPreferredSize(new Dimension(100, 20));
+		int temp = c.fill;
 		c.fill = GridBagConstraints.HORIZONTAL;
 		panel.add(sep, c);
-		c.fill = GridBagConstraints.NONE;
+		c.fill = temp;
 	}
 	
 	/** Assumes that all of the required points are already
@@ -870,7 +869,10 @@ public class GUI extends JFrame
 		}
 		else if (mode == COLOR)
 		{
-			displayColor(ip.getPixel(ip.vertices[0]));
+			Color color = ip.getPixel(ip.vertices[0]);
+			int[] rgb = Calc.getIntRGB(color);			
+			double[] XYZ = Calc.RGBtoXYZ(rgb);
+			displayColor(color, rgb, XYZ);
 		}		
 	}
 	
@@ -1001,6 +1003,7 @@ public class GUI extends JFrame
 			{
 				clearImFields(); // Reset im fields
 				ip.loadImage(load);
+				setTitle(title + " - " + path);
 				refresh();
 			}
 		}		
@@ -1090,6 +1093,7 @@ public class GUI extends JFrame
 	 * ANGLE = 1;<br>
  	 * PRIMER = 2;<br>
 	 * RULER = 3;<br>
+	 * COLOR = 4;<br>
 	 */
 	public void setMeasuringMode(int newMode)
 	{
@@ -1190,42 +1194,43 @@ public class GUI extends JFrame
 		fieldsRuler[RU_SCALE].setText(Calc.precise12.format(ip.pixelsPerMM));
 	}
 	
-	public void displayColor(Color color)
+	public void displayColor(Color color, int[] rgb, double[] XYZ)
 	{
-		// Set RGB color
+		// Set RGB color		
 		
-		int[] rgb = Calc.getIntRGB(color);
     	fieldColor.setBackground(color);
     	fieldColor.setForeground(new Color(xorBack^xorFront^color.getRGB()));
     	fieldRGB.setText(rgb[0] + "," + rgb[1] + "," + rgb[2]);
     	
-    	// Get XYZ
+    	// Set XYZ    	
+    	    	
+    	for (int i = 0; i < fieldXYZ.length; i++)
+    	{
+    		fieldXYZ[i].setText(Calc.precise8.format(XYZ[i]));
+    		fieldXYZ[i].setCaretPosition(0);
+    	}  
     	
-    	double[] XYZ = Calc.RGBtoXYZ(rgb);
+    	// Get wavelength from XYZ curve fitting method
     	
-    	fieldXYZ[0].setText(Calc.precise8.format(XYZ[0]));
-    	fieldXYZ[1].setText(Calc.precise8.format(XYZ[1]));
-    	fieldXYZ[2].setText(Calc.precise8.format(XYZ[2])); 
+    	double[] results = Calc.getPrimaryWavelengthFitXYZ(XYZ);
+    	fieldLambdaFitXYZ[0].setText(Calc.whole.format(results[0]));    	
+    	for (int i = 1; i < 4; i++)
+    	{
+    		fieldLambdaFitXYZ[i].setText(Calc.precise8.format(results[i]));
+    		fieldLambdaFitXYZ[i].setCaretPosition(0);
+    	}  
     	
-    	// Get wavelength from curve fitting method
+    	// Get wavelength from xy fitting method
     	
-    	double[] results = Calc.getPrimaryWavelengthCurveFit(XYZ);
-    	fieldLambdaCurve[0].setText(Calc.whole.format(results[0]));
-    	fieldLambdaCurve[1].setText(Calc.precise8.format(results[1]));
-    	fieldLambdaCurve[2].setText(Calc.precise8.format(results[2]));
-    	fieldLambdaCurve[3].setText(Calc.precise8.format(results[3]));
+    	results = Calc.getPrimaryWavelengthFitxy(XYZ);
+    	fieldLambdaFitxy[0].setText(Calc.whole.format(results[0]));
+    	fieldLambdaFitxy[1].setText(Calc.precise8.format(results[1]));
     	
     	// Get wavelength from inverse truncation method
     	
-    	results = Calc.getPrimaryWavelengthCurveFit(XYZ);
+    	results = Calc.getPrimaryWavelengthInverseTrunc(rgb);
     	fieldLambdaTrunc[0].setText(Calc.whole.format(results[0]));
     	fieldLambdaTrunc[1].setText(Calc.precise8.format(results[1]));
-    	
-    	// Get wavelength from saturation extrapolation method
-    	
-    	results = Calc.getPrimaryWavelengthSatExtrap(XYZ);
-    	fieldLambdaExtrap[0].setText(Calc.whole.format(results[0]));
-    	fieldLambdaExtrap[1].setText(Calc.precise8.format(results[1]));
 	}
 	
 	public void refresh()
