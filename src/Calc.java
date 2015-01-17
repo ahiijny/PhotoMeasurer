@@ -258,7 +258,7 @@ public class Calc
 		int nm = (int)(nanometers + 0.5);
 		
 		if (nm >= 360 && nm <= 830)		
-			XYZ = copy(cie31_cmf[nm - 360]);
+			XYZ = copy(cmf_cie31[nm - 360]);
 		
 		return XYZ;
 	}
@@ -453,7 +453,7 @@ public class Calc
 		
 		// Iterate through CMF table and find best match
 		
-		for (int i = 0; i < cie31_cmf.length; i++)
+		for (int i = 0; i < cmf_cie31.length; i++)
 		{
 			// Compute the squared error at this wavelength
 			
@@ -461,7 +461,7 @@ public class Calc
 			
 			for (int j = 0; j < 3; j++)
 			{
-				double error = cie31_cmf[i][j] - XYZ[j];
+				double error = cmf_cie31[i][j] - XYZ[j];
 				sqerror += error * error;
 			}
 			
@@ -481,7 +481,7 @@ public class Calc
 		
 		for (int j = 0; j < 3; j++)
 		{
-			double error = cie31_cmf[nmToIndex(bestLambda)][j] - XYZ[j];
+			double error = cmf_cie31[nmToIndex(bestLambda)][j] - XYZ[j];
 			rmse[j] = error / slopes[j];
 			if (slopes[j] == 0)
 				rmse[j] = Double.POSITIVE_INFINITY;
@@ -665,15 +665,15 @@ public class Calc
 			int index = nmToIndex(nm);
 			// Left edge is 0 
 			if (index == nmToIndex(360))
-				slopes = copy(cie31_cmf[index + 1]);
+				slopes = copy(cmf_cie31[index + 1]);
 			
 			// Right edge is 0 
 			else if (index == nmToIndex(830))
-				slopes = scale(copy(cie31_cmf[index - 1]), -1);
+				slopes = scale(copy(cmf_cie31[index - 1]), -1);
 			
 			// Otherwise, the numerator of the slope is just the next value subtract the previous value
 			else
-				slopes = add(cie31_cmf[index + 1], scale(cie31_cmf[index - 1], -1));
+				slopes = add(cmf_cie31[index + 1], scale(cmf_cie31[index - 1], -1));
 		}
 		
 		// Divide by dlambda
@@ -734,8 +734,10 @@ public class Calc
 	/** The CIE 1931 2-deg spectrum->XYZ colour-matching function.
 	 * The first entry is with wavelength = 360 nm. The increments
 	 * are 1 nm. The last entry is 830 nm. There are 471 entries. 
+	 * 
+	 * Source: http://www.cvrl.org/cmfs.htm 
 	 */
-	public static final double[][] cie31_cmf = {
+	public static final double[][] cmf_cie31 = {
 		{0.0001299,0.000003917,0.0006061},
 		{0.000145847,0.000004393581,0.0006808792},
 		{0.0001638021,0.000004929604,0.0007651456},
@@ -1228,11 +1230,11 @@ public class Calc
 	
 	static
 	{
-		cmf_whiteToLocus = new double[cie31_cmf.length][2];
-		cmf_rgb_lin = new double[cie31_cmf.length][3];		
-		cmf_xy = new double[cie31_cmf.length][2];
+		cmf_whiteToLocus = new double[cmf_cie31.length][2];
+		cmf_rgb_lin = new double[cmf_cie31.length][3];		
+		cmf_xy = new double[cmf_cie31.length][2];
 		
-		for (int i = 0; i < cie31_cmf.length; i++)
+		for (int i = 0; i < cmf_cie31.length; i++)
 		{
 			double[] XYZ = lambdaToXYZ(indexToNM(i));
 			double[] xyY = XYZtoxyY(XYZ);

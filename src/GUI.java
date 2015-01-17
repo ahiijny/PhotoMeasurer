@@ -17,6 +17,8 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.io.File;
 import java.io.IOException;
 
@@ -34,6 +36,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
+import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.JToggleButton;
@@ -131,7 +134,7 @@ public class GUI extends JFrame
 				
 	// Content Panes
 
-	public JPanel content;
+	public JSplitPane content;
 	public JPanel paneCenter, paneLeft, paneRight, paneBottom, paneTop, paneSpecWrapper;
 	public JPanel[] panesMeasurement = new JPanel[5];
 	public ImagePanel ip;
@@ -151,6 +154,7 @@ public class GUI extends JFrame
 	public JLabel statusBar;
 	public JComboBox<String> zoomCtrl;
 	public JComboBox<String> renderCtrl;
+	public JScrollPane tableWrapper;
 	public JTable table;	
 		
 	// Buttons
@@ -203,7 +207,7 @@ public class GUI extends JFrame
 	private JMenuBar createMenuBar()
 	{
 		JMenuBar menuBar = new JMenuBar();
-		JMenu file, view, help;
+		JMenu file, data, view, help;
 		JMenuItem button;
 		int menuKeyMask = InputEvent.CTRL_MASK;
 
@@ -239,6 +243,41 @@ public class GUI extends JFrame
 		button.setMnemonic('x');
 		button.addActionListener (menuListener);
 		file.add(button);
+		
+		// "Data" Menu
+		
+		data = new JMenu("Data");
+		data.setMnemonic('d');
+		
+		button = new JMenuItem ("Log image metadata");
+		button.setMnemonic('m');
+		button.addActionListener (menuListener);
+		data.add(button);
+		
+		button = new JMenuItem ("Log image name");
+		button.setMnemonic('n');
+		button.addActionListener (menuListener);
+		data.add(button);
+		
+		button = new JMenuItem ("Log spectrum XYZ");
+		button.setMnemonic('z');
+		button.addActionListener (menuListener);
+		data.add(button);
+		
+		button = new JMenuItem ("Log spectrum xyY");
+		button.setMnemonic('x');
+		button.addActionListener (menuListener);
+		data.add(button);
+		
+		button = new JMenuItem ("Log spectrum RGB_lin");
+		button.setMnemonic('l');
+		button.addActionListener (menuListener);
+		data.add(button);
+		
+		button = new JMenuItem ("Log spectrum RGB");
+		button.setMnemonic('r');
+		button.addActionListener (menuListener);
+		data.add(button);
 		
 		// "View" Menu
 		
@@ -277,6 +316,7 @@ public class GUI extends JFrame
 
 		// Add All Menus        
 		menuBar.add (file);
+		menuBar.add (data);
 		menuBar.add (view);
 		menuBar.add (help);
 
@@ -284,7 +324,7 @@ public class GUI extends JFrame
 		return menuBar;
 	}
 	
-	private JPanel createContent()
+	private JSplitPane createContent()
 	{
 		// Init Measurement Panels
 		
@@ -298,13 +338,23 @@ public class GUI extends JFrame
 		paneRight = createRightPanel();
 		paneBottom = createBottomPanel();
 		
-		// Add panels to content pane
+		// Add panels to main pane and left pane
 		
-		content = new JPanel(new BorderLayout());
-		content.add(paneCenter, BorderLayout.CENTER);
-		content.add(paneLeft, BorderLayout.WEST);
-		content.add(paneRight, BorderLayout.EAST);
-		content.add(paneBottom, BorderLayout.SOUTH);
+		JPanel main = new JPanel(new BorderLayout());
+		JPanel left = new JPanel(new BorderLayout());
+		
+		main.add(paneCenter, BorderLayout.CENTER);
+		left.add(paneLeft, BorderLayout.WEST);
+		main.add(paneRight, BorderLayout.EAST);
+		main.add(paneBottom, BorderLayout.SOUTH);
+		
+		// Add panes to split pane
+		
+		content = new JSplitPane();
+		content.setLeftComponent(left);
+		content.setRightComponent(main);
+		content.setDividerSize(4);
+		content.addPropertyChangeListener(new MyPropertyChangeListener());
 						
 		return content;
 	}
@@ -452,7 +502,7 @@ public class GUI extends JFrame
 			
 		table = new JTable(tableSize, tableCols);		
 		table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF); 
-		JScrollPane tableWrapper = new JScrollPane(table, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+		tableWrapper = new JScrollPane(table, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
 		tableWrapper.setPreferredSize(new Dimension(170, 1));
 		
 		table.getTableHeader().setReorderingAllowed(false);				
@@ -1022,6 +1072,83 @@ public class GUI extends JFrame
 			tableIndex = index;
 	}
 	
+	public void logMetadata()
+	{
+		try
+		{
+			tableSet("" + ip.mm.model, 0);
+			tableSet("" + ip.mm.make, 1);
+			tableIncrement();
+			
+			tableSet("Width", 0);
+			tableSet("" + ip.mm.size.width, 1);
+			tableIncrement();
+			
+			tableSet("Height", 0);
+			tableSet("" + ip.mm.size.height, 1);
+			tableIncrement();
+			
+			tableSet("Date", 0);
+			tableSet("" + Calc.date.format(ip.mm.date), 1);
+			tableSet("" + Calc.time.format(ip.mm.date), 2);
+			tableIncrement();
+			
+			tableSet("Shutter(s)", 0);
+			tableSet("" + ip.mm.exposure, 1);
+			tableIncrement();
+			
+			tableSet("f/D", 0);
+			tableSet("" + ip.mm.fnumber, 1);
+			tableIncrement();
+			
+			tableSet("Focus", 0);
+			tableSet("" + ip.mm.focus, 1);
+			tableIncrement();
+			
+			tableSet("ISO", 0);
+			tableSet("" + ip.mm.iso, 1);
+			tableIncrement();
+			
+			tableSet("Bias(EV)", 0);
+			tableSet("" + ip.mm.exposureBias, 1);
+			tableIncrement();
+			
+			tableSet("White Balance", 0);
+			tableSet("" + ip.mm.wb_red, 1);
+			tableSet("" + ip.mm.wb_green, 2);
+			tableSet("" + ip.mm.wb_red, 3);
+			tableIncrement();
+		}
+		catch (Exception e)
+		{				
+		}
+	}
+	
+	public void logName()
+	{
+		
+	}
+	
+	public void log_cmf_XYZ()
+	{
+		
+	}
+	
+	public void log_cmf_xyY()
+	{
+		
+	}
+	
+	public void log_cmf_RGB_lin()
+	{
+		
+	}
+	
+	public void log_cmf_RGB()
+	{
+		
+	}		
+	
 	/** Reads image from file and loads it into ImagePanel. 
 	 */
 	public void loadFile()
@@ -1347,6 +1474,20 @@ public class GUI extends JFrame
 		fieldTableIndex.setText("" + tableIndex);
 		fieldTableSize.setText("" + tableSize);
 	}
+	
+	private class MyPropertyChangeListener implements PropertyChangeListener
+	{
+		@Override
+		public void propertyChange(PropertyChangeEvent e) 
+		{
+			JSplitPane pane = (JSplitPane)e.getSource();
+			int size = pane.getDividerLocation();
+			if (size < 175)
+				pane.setDividerLocation(175);
+			tableWrapper.setPreferredSize(new Dimension(size - 5, 1));
+			tableWrapper.revalidate();
+		}		
+	}
 
 	/** Action Listener for the buttons.
 	 */
@@ -1533,6 +1674,30 @@ public class GUI extends JFrame
 				{
 					export();
 				}
+				else if (name.equals("Log image metadata"))
+				{
+					logMetadata();
+				}
+				else if (name.equals("Log image name"))
+				{
+					logName();
+				}
+				else if (name.equals("Log spectrum XYZ"))
+				{
+					log_cmf_XYZ();
+				}
+				else if (name.equals("Log spectrum xyY"))
+				{
+					log_cmf_xyY();
+				}
+				else if (name.equals("Log spectrum RGB_lin"))
+				{
+					log_cmf_RGB_lin();
+				}
+				else if (name.equals("Log spectrum RGB"))
+				{
+					log_cmf_RGB();
+				}
 				else if (name.equals("Jump to Origin"))
 				{
 					ip.setOffset(new Point(0, 0));
@@ -1546,18 +1711,16 @@ public class GUI extends JFrame
 				{
 					String str = "Angle[1]: {angle in degrees}\n";
 					str += "Length[1]: {length}\n";
-					str += "Color[9]: {R, G, B, X, Y, Z, \u03BB (XYZ fit), \u03BB (xy fit), \u03BB (RGB fit)}\n";
-							
+					str += "Color[10]: {R, G, B, X, Y, Z, \u03BB (XYZ fit), \u03BB (xy fit), \u03BB (RGB fit), \u03BB (SatExrap fit)}\n";					
 					JOptionPane.showMessageDialog(GUI.this, str, "Data Format", JOptionPane.PLAIN_MESSAGE);			
 				}
 				else if (name.equals("Controls"))
 				{
-					String str = "Shortcut keys:\n";
-					str += "Shift + drag: move image\n";
+					String str = "Shift + drag: move image\n";
 					str += "Scroll: zoom\n";
 					str += "Delete: clear selected row\n";
 							
-					JOptionPane.showMessageDialog(GUI.this, str, "Controls", JOptionPane.PLAIN_MESSAGE);			
+					JOptionPane.showMessageDialog(GUI.this, str, "Shortcut Keys", JOptionPane.PLAIN_MESSAGE);			
 				}
 				else if (name.equals("About"))
 				{
