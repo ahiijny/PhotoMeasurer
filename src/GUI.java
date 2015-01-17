@@ -63,6 +63,8 @@ public class GUI extends JFrame
 		new GUI();
 	}		
 	
+	// Mode labels
+	
 	public static final int NONE = 0;
 	public static final int ANGLE = 1;
 	public static final int PRIMER = 2;
@@ -70,57 +72,96 @@ public class GUI extends JFrame
 	public static final int COLOR = 4;
 	public static final int WAVELENGTH = 5;
 	
-	public static final int MAKE = 0;
-	public static final int MODEL = 1;
-	public static final int WIDTH = 2;
-	public static final int HEIGHT = 3;
-	public static final int DATE = 4;
-	public static final int TIME = 5;
-	public static final int SHUTTER = 6;
-	public static final int FNUMBER = 7;
-	public static final int FOCUS = 8;
-	public static final int ISO = 9;
-	public static final int BIAS = 10;
-	public static final int WB_RED = 11;
-	public static final int WB_GREEN = 12;
-	public static final int WB_BLUE = 13;
+	// Image Spec Labels
+	
+	public static final int IM_MAKE = 0;
+	public static final int IM_MODEL = 1;
+	public static final int IM_WIDTH = 2;
+	public static final int IM_HEIGHT = 3;
+	public static final int IM_DATE = 4;
+	public static final int IM_TIME = 5;
+	public static final int IM_SHUTTER = 6;
+	public static final int IM_FNUMBER = 7;
+	public static final int IM_FOCUS = 8;
+	public static final int IM_ISO = 9;
+	public static final int IM_BIAS = 10;
+	public static final int IM_WB_RED = 11;
+	public static final int IM_WB_GREEN = 12;
+	public static final int IM_WB_BLUE = 13;
+	
+	// Angle Labels
+	
+	public static final int AN_ANGLE = 0;
+	
+	// Primer Labels
+	
+	public static final int PR_SCALE = 0;
+	
+	// Ruler Labels
+	
+	public static final int RU_LENGTH = 0;
+	public static final int RU_SCALE = 1;
+	
+	// Measurement Panel Fields
 		
 	public static final Font fontCourier = new Font("Courier New", Font.PLAIN, 12);
 	public static final Font fontHeader = new Font("Verdana", Font.PLAIN, 12);
 	
 	public static final int[] pointCount = {0, 3, 2, 2, 1};
-	public static final String[] specLabels = {"Make", "Model", "Width", "Height", "Date", "Time", "Shutter(s)", "f/D", "Focus(mm)", "ISO", "Exp Bias(EV)", "WB red", "WB green", "WB blue"};
+	public static final String[] labelsSpecs = {"Make", "Model", "Width", "Height", "Date", "Time", "Shutter(s)", "f/D", "Focus(mm)", "ISO", "Exp Bias(EV)", "WB red", "WB green", "WB blue"};
+	public static final String[] labelsAngle = {"Degrees"};
+	public static final String[] labelsPrimer = {"Pixels/length"};
+	public static final String[] labelsRuler = {"Length", "Pixels/length"};
+	
+	public JTextField[] fieldsImSpecs = new JTextField[labelsSpecs.length];
+	public JTextField[] fieldsAngle = new JTextField[labelsAngle.length];
+	public JTextField[] fieldsPrimer = new JTextField[labelsPrimer.length];
+	public JTextField[] fieldsRuler = new JTextField[labelsRuler.length];
+	
+	// Color Measurement Panel Fields
+	
+	public JTextField[] fieldXYZ, fieldLambdaCurve, fieldLambdaExtrap, fieldLambdaTrunc; 
+	public JTextField fieldColor, fieldRGB, fieldTableIndex, fieldTableSize;
+	
+	// Listeners
 	
 	public MyActionListener myActionListener = new MyActionListener();	
 	public MenuListener menuListener = new MenuListener();
-	
-	public JTextField[] fieldImSpecs = new JTextField[specLabels.length];	
-	private File directory = new File(""); // initialize dir to current dir	
-	public String defaultStatus = "Become the literally I know lives.";
+	private KeyboardFocusManager manager;
+	private MyDispatcher keyDispatcher;
+				
+	// Content Panes
 
 	public JPanel content;
 	public JPanel paneCenter, paneLeft, paneRight, paneBottom, paneTop, paneSpecWrapper;
 	public JPanel[] panesMeasurement = new JPanel[6];
 	public ImagePanel ip;
 	
-	public JButton[] buttonsMeasure = new JButton[5];	
+	// Control Panel
+	
+	public JButton[] buttonsMeasure = new JButton[5];
+	public JToggleButton buttonLog;
 	public JButton buttonMove;	
 	public int mode = 0;
 	
+	// Dynamic Displays
+	
+	public String defaultStatus = "Become the literally I know lives.";
 	public JLabel positionLabel;
 	public JLabel ratioLabel;
 	public JLabel statusBar;
 	public JComboBox<String> zoomCtrl;
 	public JComboBox<String> renderCtrl;
-	public JTable table;
+	public JTable table;	
+		
+	// Buttons
+		
+	public JButton buttonTableIndex, buttonTableSize, buttonLengthScale;
 	
-	public JTextField[] fieldXYZ, fieldLambdaCurve, fieldLambdaExtrap, fieldLambdaTrunc; 
-	public JTextField fieldColor, fieldRGB, fieldTableIndex, fieldTableSize;
+	// Other Stuff
 	
-	public JButton buttonTableIndex, buttonTableSize;
-	
-	public JToggleButton buttonLog;
-	
+	private File directory = new File(""); // initialize dir to current dir	
+			
 	public int xorBack = Color.white.getRGB();
 	public int xorFront = Color.black.getRGB();
 	
@@ -132,8 +173,7 @@ public class GUI extends JFrame
 	public boolean isLogging = true;
 	public double zoomStep = 0.1;	// The increase in zoom (1 = 100%) per scroll increment
 	
-	private KeyboardFocusManager manager;
-	private MyDispatcher keyDispatcher;
+	
 
 	public GUI()
 	{
@@ -472,6 +512,7 @@ public class GUI extends JFrame
 		c.insets = new Insets(2,4,2,4);
 		c.gridx = c.gridy = 0;
 		c.fill = GridBagConstraints.HORIZONTAL;
+		int cols = 14;
 		
 		// Header
 		
@@ -481,20 +522,20 @@ public class GUI extends JFrame
 		
 		// Image data
 		
-		for (int i = 0; i < specLabels.length; i++)
+		for (int i = 0; i < labelsSpecs.length; i++)
 		{
-			label = new JLabel(specLabels[i]);
+			label = new JLabel(labelsSpecs[i]);
 			label.setFont(fontCourier);
 			
-			fieldImSpecs[i] = new JTextField(14);
-			fieldImSpecs[i].setEditable(false);
-			fieldImSpecs[i].setBackground(Color.white);
+			fieldsImSpecs[i] = new JTextField(cols);
+			fieldsImSpecs[i].setEditable(false);
+			fieldsImSpecs[i].setBackground(Color.white);
 			
 			c.weightx = 0;
 			gridBagAdd(specs, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
 			
 			c.weightx = 1;
-			gridBagAdd(specs, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldImSpecs[i]);
+			gridBagAdd(specs, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldsImSpecs[i]);
 			
 		}
 		
@@ -505,10 +546,120 @@ public class GUI extends JFrame
 	
 	private JPanel getMeasurementPanel(int panelMode)
 	{
-		if (panelMode == COLOR)
+		if (panelMode == ANGLE)
+			return getAnglePanel();
+		else if (panelMode == PRIMER)
+			return getPrimerPanel();
+		else if (panelMode == RULER)
+			return getRulerPanel();
+		else if (panelMode == COLOR)
 			return getColorPanel();
 		else
 			return new JPanel();
+	}
+	
+	private JPanel getAnglePanel()
+	{				
+		// Angle panel
+		
+		JPanel angle = new JPanel(new GridBagLayout());
+		GridBagConstraints c = new GridBagConstraints();
+		c.insets = new Insets(2,4,2,4);
+		c.gridx = c.gridy = 0;
+		c.fill = GridBagConstraints.HORIZONTAL;
+		int cols = 14;
+		
+		// Angle data
+		
+		for (int i = 0; i < labelsAngle.length; i++)
+		{
+			JLabel label = new JLabel(labelsAngle[i]);
+			label.setFont(fontCourier);
+			
+			fieldsAngle[i] = new JTextField(cols);
+			fieldsAngle[i].setEditable(false);
+			fieldsAngle[i].setBackground(Color.white);
+			
+			c.weightx = 0;
+			gridBagAdd(angle, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
+			c.weightx = 1;
+			gridBagAdd(angle, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldsAngle[i]);			
+		}
+		
+		gridBagSeparator(angle, c, 0, ++c.gridy, 2);
+				
+		return angle;
+	}
+	
+	private JPanel getRulerPanel()
+	{				
+		// Ruler panel
+		
+		JPanel ruler = new JPanel(new GridBagLayout());
+		GridBagConstraints c = new GridBagConstraints();
+		c.insets = new Insets(2,4,2,4);
+		c.gridx = c.gridy = 0;
+		c.fill = GridBagConstraints.HORIZONTAL;
+		int cols = 13;
+		
+		// Ruler data
+		
+		for (int i = 0; i < labelsRuler.length; i++)
+		{
+			JLabel label = new JLabel(labelsRuler[i]);
+			label.setFont(fontCourier);
+			
+			fieldsRuler[i] = new JTextField(cols);
+			fieldsRuler[i].setEditable(false);
+			fieldsRuler[i].setBackground(Color.white);
+			
+			c.weightx = 0;
+			gridBagAdd(ruler, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
+			c.weightx = 1;
+			gridBagAdd(ruler, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldsRuler[i]);			
+		}
+		
+		gridBagSeparator(ruler, c, 0, ++c.gridy, 2);
+				
+		return ruler;
+	}
+	
+	private JPanel getPrimerPanel()
+	{				
+		// Primer panel
+		
+		JPanel primer = new JPanel(new GridBagLayout());
+		GridBagConstraints c = new GridBagConstraints();
+		c.insets = new Insets(2,4,2,4);
+		c.gridx = c.gridy = 0;
+		c.fill = GridBagConstraints.HORIZONTAL;
+		int cols = 13;
+		
+		// Primer data
+		
+		for (int i = 0; i < labelsPrimer.length; i++)
+		{
+			JLabel label = new JLabel(labelsPrimer[i]);
+			label.setFont(fontCourier);
+			
+			fieldsPrimer[i] = new JTextField(cols);
+			fieldsPrimer[i].setBackground(Color.white);
+			
+			c.weightx = 0;
+			gridBagAdd(primer, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
+			c.weightx = 1;
+			gridBagAdd(primer, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldsPrimer[i]);			
+		}
+		
+		buttonLengthScale = new JButton("Set");
+		buttonLengthScale.addActionListener(myActionListener);
+		c.fill = GridBagConstraints.NONE;
+		gridBagAdd(primer, c, 0, ++c.gridy, 2, GridBagConstraints.CENTER, buttonLengthScale);
+		
+		c.fill = GridBagConstraints.HORIZONTAL;
+		gridBagSeparator(primer, c, 0, ++c.gridy, 2);
+		
+		return primer;
 	}
 	
 	private JPanel getColorPanel()
@@ -518,12 +669,13 @@ public class GUI extends JFrame
 		c.gridx = c.gridy = 0;
 		c.insets = new Insets(2,4,2,4);
 		c.fill = GridBagConstraints.HORIZONTAL;
-		
+		int cols = 13;
+				
 		// RGB Color sensor
 		
 		JLabel label = new JLabel("Color");
 		label.setFont(fontCourier);		
-		fieldColor = new JTextField(13);
+		fieldColor = new JTextField(cols);
 		fieldColor.setFont(fontCourier);
 		fieldColor.setEditable(false);		
 		gridBagAdd(color, c, 0, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
@@ -531,7 +683,7 @@ public class GUI extends JFrame
 		
 		label = new JLabel("RGB");
 		label.setFont(fontCourier);		
-		fieldRGB = new JTextField(13);
+		fieldRGB = new JTextField(cols);
 		fieldRGB.setFont(fontCourier);
 		fieldRGB.setEditable(false);		
 		gridBagAdd(color, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
@@ -550,7 +702,7 @@ public class GUI extends JFrame
 			label = new JLabel(labels[i]);
 			label.setFont(fontCourier);	
 			
-			fieldXYZ[i] = new JTextField(13);
+			fieldXYZ[i] = new JTextField(cols);
 			fieldXYZ[i].setFont(fontCourier);
 			fieldXYZ[i].setEditable(false);
 			fieldXYZ[i].setBackground(Color.white);
@@ -574,7 +726,7 @@ public class GUI extends JFrame
 			label = new JLabel(labels[i]);
 			label.setFont(fontCourier);	
 			
-			fieldLambdaCurve[i] = new JTextField(13);
+			fieldLambdaCurve[i] = new JTextField(cols);
 			fieldLambdaCurve[i].setFont(fontCourier);
 			fieldLambdaCurve[i].setEditable(false);
 			fieldLambdaCurve[i].setBackground(Color.white);
@@ -598,7 +750,7 @@ public class GUI extends JFrame
 			label = new JLabel(labels[i]);
 			label.setFont(fontCourier);	
 			
-			fieldLambdaTrunc[i] = new JTextField(13);
+			fieldLambdaTrunc[i] = new JTextField(cols);
 			fieldLambdaTrunc[i].setFont(fontCourier);
 			fieldLambdaTrunc[i].setEditable(false);
 			fieldLambdaTrunc[i].setBackground(Color.white);
@@ -675,18 +827,22 @@ public class GUI extends JFrame
 	{
 		if (mode == ANGLE)
 		{
+			double angle = Calc.findAngle(ip.vertices[0], ip.vertices[1], ip.vertices[2]);
+			displayAngle(angle);
 			if (isLogging)
-				tableAppend(Calc.findAngle(ip.vertices[0], ip.vertices[1], ip.vertices[2]));
+				tableAppend(angle);
 		}
 		else if (mode == RULER)
 		{
+			double length = Calc.findDistance(ip.vertices[0], ip.vertices[1], ip.pixelsPerMM);
+			displayRuler(length);
 			if (isLogging)
-				tableAppend(Calc.findDistance(ip.vertices[0], ip.vertices[1], ip.pixelsPerMM));
+				tableAppend(length);
 		}
 		else if (mode == PRIMER)
-		{
+		{			
 			promptPrimerDistance();
-			setMeasuringMode(NONE);
+			displayPrimer();
 		}
 		else if (mode == COLOR)
 		{
@@ -735,6 +891,19 @@ public class GUI extends JFrame
 			
 			repaint();
 		}		
+	}
+	
+	public void inputLengthScale()
+	{
+		try
+		{
+			double pixelsPerMM = Double.parseDouble(fieldsPrimer[PR_SCALE].getText());
+			ip.pixelsPerMM = pixelsPerMM;
+		}
+		catch (Exception e)
+		{			
+		}
+		refreshRightPanel();
 	}
 	
 	public void inputTableSize()
@@ -849,8 +1018,7 @@ public class GUI extends JFrame
 	 */
 	public void setMeasuringMode(int newMode)
 	{
-		int oldMode = mode;
-		System.out.println(oldMode + " " + newMode);			
+		int oldMode = mode;		
 				
 		// Set the mode
 				
@@ -879,7 +1047,7 @@ public class GUI extends JFrame
 		
 		paneSpecWrapper.remove(panesMeasurement[oldMode]);
 		paneSpecWrapper.add(panesMeasurement[mode], BorderLayout.SOUTH);
-		revalidate();
+		refresh();
 	}
 	
 	private void updateMove(Point now)
@@ -931,6 +1099,22 @@ public class GUI extends JFrame
 		}
 	}	
 	
+	public void displayAngle(double degrees)
+	{
+		fieldsAngle[AN_ANGLE].setText(Calc.precise12.format(degrees));
+	}
+	
+	public void displayPrimer()
+	{
+		fieldsPrimer[PR_SCALE].setText(Calc.precise12.format(ip.pixelsPerMM));
+	}
+	
+	public void displayRuler(double length)
+	{
+		fieldsRuler[RU_LENGTH].setText(Calc.precise12.format(length));
+		fieldsRuler[RU_SCALE].setText(Calc.precise12.format(ip.pixelsPerMM));
+	}
+	
 	public void displayColor(Color color)
 	{
 		// Set RGB color
@@ -971,30 +1155,43 @@ public class GUI extends JFrame
 	
 	public void refresh()
 	{
+		refreshRightPanel();
+		refreshLeftPanel();
+		revalidate();
+		repaint();
+	}
+	
+	public void refreshRightPanel()
+	{
+		// Refresh Image Specs panel
+		
 		if (ip.mm != null)
 		{
 			try
 			{
-				fieldImSpecs[MODEL].setText(ip.mm.model);
-				fieldImSpecs[MAKE].setText(ip.mm.make);
-				fieldImSpecs[WIDTH].setText(Calc.whole.format(ip.mm.size.width));
-				fieldImSpecs[HEIGHT].setText(Calc.whole.format(ip.mm.size.height));
-				fieldImSpecs[DATE].setText(Calc.date.format(ip.mm.date));
-				fieldImSpecs[TIME].setText(Calc.time.format(ip.mm.date));
-				fieldImSpecs[SHUTTER].setText(Calc.precise8.format(ip.mm.exposure));
-				fieldImSpecs[FNUMBER].setText(Calc.precise8.format(ip.mm.fnumber));
-				fieldImSpecs[FOCUS].setText(Calc.precise8.format(ip.mm.focus));
-				fieldImSpecs[ISO].setText(Calc.whole.format(ip.mm.iso));
-				fieldImSpecs[BIAS].setText(Calc.precise8.format(ip.mm.exposureBias));
-				fieldImSpecs[WB_RED].setText(Calc.whole.format(ip.mm.wb_red));
-				fieldImSpecs[WB_GREEN].setText(Calc.whole.format(ip.mm.wb_green));
-				fieldImSpecs[WB_BLUE].setText(Calc.whole.format(ip.mm.wb_blue));
+				fieldsImSpecs[IM_MODEL].setText(ip.mm.model);
+				fieldsImSpecs[IM_MAKE].setText(ip.mm.make);
+				fieldsImSpecs[IM_WIDTH].setText(Calc.whole.format(ip.mm.size.width));
+				fieldsImSpecs[IM_HEIGHT].setText(Calc.whole.format(ip.mm.size.height));
+				fieldsImSpecs[IM_DATE].setText(Calc.date.format(ip.mm.date));
+				fieldsImSpecs[IM_TIME].setText(Calc.time.format(ip.mm.date));
+				fieldsImSpecs[IM_SHUTTER].setText(Calc.precise8.format(ip.mm.exposure));
+				fieldsImSpecs[IM_FNUMBER].setText(Calc.precise8.format(ip.mm.fnumber));
+				fieldsImSpecs[IM_FOCUS].setText(Calc.precise8.format(ip.mm.focus));
+				fieldsImSpecs[IM_ISO].setText(Calc.whole.format(ip.mm.iso));
+				fieldsImSpecs[IM_BIAS].setText(Calc.precise8.format(ip.mm.exposureBias));
+				fieldsImSpecs[IM_WB_RED].setText(Calc.whole.format(ip.mm.wb_red));
+				fieldsImSpecs[IM_WB_GREEN].setText(Calc.whole.format(ip.mm.wb_green));
+				fieldsImSpecs[IM_WB_BLUE].setText(Calc.whole.format(ip.mm.wb_blue));
 			}
 			catch (Exception e)
 			{				
 			}
-		}	
-		refreshLeftPanel();
+		}
+		if (mode == PRIMER)
+			fieldsPrimer[PR_SCALE].setText(Calc.precise12.format(ip.pixelsPerMM));
+		else if (mode == RULER)
+			fieldsRuler[RU_SCALE].setText(Calc.precise12.format(ip.pixelsPerMM));
 	}
 	
 	public void refreshLeftPanel()
@@ -1029,8 +1226,8 @@ public class GUI extends JFrame
 				}
 				else if (button.getText().equals("Primer"))
 				{
-					setMeasuringMode(PRIMER);
 					writeStatus("Select a known length (e.g. across a ruler).");
+					setMeasuringMode(PRIMER);					
 				}
 				else if (button.getText().equals("Ruler"))
 				{
@@ -1043,6 +1240,10 @@ public class GUI extends JFrame
 				else if (button.getText().equals("Color"))
 				{
 					setMeasuringMode(COLOR);
+				}
+				else if (button.equals(buttonLengthScale))
+				{
+					inputLengthScale();
 				}
 				else if (button.equals(buttonTableIndex))
 				{
@@ -1185,8 +1386,8 @@ public class GUI extends JFrame
 				}
 				else if (name.equals("Formatting"))
 				{
-					String str = "Length[1]: {length}\n";
-					str += "Angle[1]: {angle in degrees}\n";
+					String str = "Angle[1]: {angle in degrees}\n";
+					str += "Length[1]: {length}\n";
 					str += "Color[6]: {R, G, B, X, Y, Z}\n";
 							
 					JOptionPane.showMessageDialog(GUI.this, str, "Data Format", JOptionPane.PLAIN_MESSAGE);			
