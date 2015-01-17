@@ -166,7 +166,7 @@ public class GUI extends JFrame
 	
 	public int tableIndex = 0;
 	public int tableSize = 128;
-	public int tableCols = 6;
+	public int tableCols = 9;
 		
 	public boolean movingMode = false;
 	public boolean isLogging = true;
@@ -872,7 +872,21 @@ public class GUI extends JFrame
 			Color color = ip.getPixel(ip.vertices[0]);
 			int[] rgb = Calc.getIntRGB(color);			
 			double[] XYZ = Calc.RGBtoXYZ(rgb);
-			displayColor(color, rgb, XYZ);
+			double[] resultsXYZ = Calc.getPrimaryWavelengthFitXYZ(XYZ);
+			double[] resultsxy = Calc.getPrimaryWavelengthFitxy(XYZ);
+			double[] resultsRGB = Calc.getPrimaryWavelengthInverseTrunc(rgb);
+			displayColor(color, rgb, XYZ, resultsXYZ, resultsxy, resultsRGB);
+			
+			tableSet("" + rgb[0], 0);
+			tableSet("" + rgb[1], 1);
+			tableSet("" + rgb[2], 2);
+			tableSet("" + XYZ[0], 3);
+			tableSet("" + XYZ[1], 4);
+			tableSet("" + XYZ[2], 5);
+			tableSet("" + (int)resultsXYZ[0], 6);
+			tableSet("" + (int)resultsxy[0], 7);
+			tableSet("" + (int)resultsRGB[0], 8);
+			tableIncrement();
 		}		
 	}
 	
@@ -1145,12 +1159,32 @@ public class GUI extends JFrame
 		statusBar.setText(text);
 	}
 	
-	/** Adds the specified value to the next cell. Resets to top if
-	 * tableIndex exceeds the length of the table.
+	/** Adds the specified value to the next cell. Doubles the
+	 * size of the table if tableIndex exceeds the length of the table.
 	 */
 	public void tableAppend(double value)
 	{
 		table.getModel().setValueAt(value + "", tableIndex, 0);
+		tableIndex++;
+		if (tableIndex >= tableSize)
+			setTableSize(2 * tableSize);
+		refreshLeftPanel();
+	}
+	
+	/** Sets the value at the specified column in the table,
+	 * at the current row.
+	 */
+	public void tableSet(String str, int col)
+	{
+		table.getModel().setValueAt(str, tableIndex, col);
+	}
+	
+	/** Advances the tableIndex to the next row. Doubles the 
+	 * size of the table if tableIndex exceeds the length
+	 * of the table.
+	 */
+	public void tableIncrement()
+	{		
 		tableIndex++;
 		if (tableIndex >= tableSize)
 			setTableSize(2 * tableSize);
@@ -1194,7 +1228,7 @@ public class GUI extends JFrame
 		fieldsRuler[RU_SCALE].setText(Calc.precise12.format(ip.pixelsPerMM));
 	}
 	
-	public void displayColor(Color color, int[] rgb, double[] XYZ)
+	public void displayColor(Color color, int[] rgb, double[] XYZ, double[] resultsXYZ, double[] resultsxy, double[] resultsRGB)
 	{
 		// Set RGB color		
 		
@@ -1211,26 +1245,23 @@ public class GUI extends JFrame
     	}  
     	
     	// Get wavelength from XYZ curve fitting method
-    	
-    	double[] results = Calc.getPrimaryWavelengthFitXYZ(XYZ);
-    	fieldLambdaFitXYZ[0].setText(Calc.whole.format(results[0]));    	
+    	    	
+    	fieldLambdaFitXYZ[0].setText(Calc.whole.format(resultsXYZ[0]));    	
     	for (int i = 1; i < 4; i++)
     	{
-    		fieldLambdaFitXYZ[i].setText(Calc.precise8.format(results[i]));
+    		fieldLambdaFitXYZ[i].setText(Calc.precise8.format(resultsXYZ[i]));
     		fieldLambdaFitXYZ[i].setCaretPosition(0);
     	}  
     	
     	// Get wavelength from xy fitting method
-    	
-    	results = Calc.getPrimaryWavelengthFitxy(XYZ);
-    	fieldLambdaFitxy[0].setText(Calc.whole.format(results[0]));
-    	fieldLambdaFitxy[1].setText(Calc.precise8.format(results[1]));
+    	    	
+    	fieldLambdaFitxy[0].setText(Calc.whole.format(resultsxy[0]));
+    	fieldLambdaFitxy[1].setText(Calc.precise8.format(resultsxy[1]));
     	
     	// Get wavelength from inverse truncation method
-    	
-    	results = Calc.getPrimaryWavelengthInverseTrunc(rgb);
-    	fieldLambdaTrunc[0].setText(Calc.whole.format(results[0]));
-    	fieldLambdaTrunc[1].setText(Calc.precise8.format(results[1]));
+    	    	
+    	fieldLambdaTrunc[0].setText(Calc.whole.format(resultsRGB[0]));
+    	fieldLambdaTrunc[1].setText(Calc.precise8.format(resultsRGB[1]));
 	}
 	
 	public void refresh()
@@ -1474,7 +1505,7 @@ public class GUI extends JFrame
 				{
 					String str = "Angle[1]: {angle in degrees}\n";
 					str += "Length[1]: {length}\n";
-					str += "Color[6]: {R, G, B, X, Y, Z}\n";
+					str += "Color[9]: {R, G, B, X, Y, Z, \u03BB (XYZ fit), \u03BB (xy fit), \u03BB (RGB fit)}\n";
 							
 					JOptionPane.showMessageDialog(GUI.this, str, "Data Format", JOptionPane.PLAIN_MESSAGE);			
 				}
