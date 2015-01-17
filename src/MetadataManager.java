@@ -43,7 +43,7 @@ public class MetadataManager
 	 * using the focal length multiplier. (www.dpreview.com/glossary/optical/focal-length)  
 	 */
 	public double focus35;
-	public double zoom;
+	public double digital_zoom;
 	public double distance;
 	public int wb_red;
 	public int wb_green;
@@ -108,7 +108,7 @@ public class MetadataManager
 			iso = subifd.getDouble(ExifSubIFDDirectory.TAG_ISO_EQUIVALENT);
 			focus = subifd.getDouble(ExifSubIFDDirectory.TAG_FOCAL_LENGTH);
 			focus35 = subifd.getDouble(ExifSubIFDDirectory.TAG_35MM_FILM_EQUIV_FOCAL_LENGTH);
-			zoom = subifd.getDouble(ExifSubIFDDirectory.TAG_DIGITAL_ZOOM_RATIO);
+			digital_zoom = subifd.getDouble(ExifSubIFDDirectory.TAG_DIGITAL_ZOOM_RATIO);
 			date = subifd.getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL);
 		}
 		
@@ -140,7 +140,7 @@ public class MetadataManager
 		str += "F-number = " + fnumber + "\n";
 		str += "Iso speed setting = " + iso + "\n";
 		str += "Exposure = " + exposure + "\n";
-		str += "Zoom = " + zoom + "\n";
+		str += "Zoom = " + digital_zoom + "\n";
 		str += "Exposure bias = " + exposureBias + "\n";
 		str += "White balance(red) = " + wb_red + "\n";
 		str += "White balance(green) = " + wb_green + "\n";

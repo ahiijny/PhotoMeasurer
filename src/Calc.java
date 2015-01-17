@@ -459,7 +459,7 @@ public class Calc
 	 * @param XYZ
 	 * @return
 	 */
-	public static double[] getPrimaryWavelengthInverseTruncate(double[] XYZ)
+	public static double[] getPrimaryWavelengthSatExtrap(double[] XYZ)
 	{			
 		double[] xyY = XYZtoxyY(XYZ);
 		double[] direction = {xyY[0] - 1/3.0, xyY[1] - 1/3.0};
@@ -479,6 +479,53 @@ public class Calc
 			for (int j = 0; j < 2; j++)
 			{
 				double error = whiteToLocus[i][j] - direction[j];
+				sqerror += error * error;
+			}
+			
+			// If it is smaller than the error so far, then
+			// store this value.
+			
+			if (sqerror < min_sqerror)
+			{
+				min_sqerror = sqerror;
+				bestLambda = indexToNM(i);
+			}
+		}
+		
+		double[] result = {bestLambda, min_sqerror};
+		
+		return result;
+	}
+	
+	/** The idea is to saturate the given XYZ color until it reaches the spectral
+	 * locus. i.e., determine the dominant wavelength by extrapolating outwards
+	 * from the white point in xyY color space.
+	 * 
+	 * index 0 - the wavelength in nanometers
+	 * index 1 - the minimized SSE of fit
+	 * 
+	 * @param XYZ
+	 * @return
+	 */
+	public static double[] getPrimaryWavelengthInverseTrunc(double[] XYZ)
+	{			
+		double[] xyY = XYZtoxyY(XYZ);
+		double[] xy = {xyY[0], xyY[1]};
+		int bestLambda = -1;
+		
+		double min_sqerror = Double.POSITIVE_INFINITY;
+		
+		// Iterate through CMF white-to-locus table and find best match
+		
+		for (int i = 0; i < whiteToLocus.length; i++)
+		{
+			// Compute the squared error at this wavelength
+			
+			double sqerror = 0;			
+			
+			for (int j = 0; j < 2; j++)
+			{
+				double error = cmf_xy[i][j] - xy[j];
 				sqerror += error * error;
 			}
 			
@@ -1025,9 +1072,14 @@ public class Calc
 	 */
 	public static double[][] whiteToLocus;
 	
+	/** The xy chromaticity values of the spectral colours. 
+	 */
+	public static double[][] cmf_xy;
+	
 	static
 	{
 		whiteToLocus = new double[cie31_cmf.length][2];
+		cmf_xy = new double[cie31_cmf.length][2];
 		
 		for (int i = 0; i < cie31_cmf.length; i++)
 		{
@@ -1037,8 +1089,12 @@ public class Calc
 			whiteToLocus[i][0] = xyY[0] - 1/3.0;
 			whiteToLocus[i][1] = xyY[1] - 1/3.0;
 			
+			cmf_xy[i][0] = xyY[0];
+			cmf_xy[i][1] = xyY[1];
+			
+			//println(cmf_xy[i]);
+			
 			whiteToLocus[i] = unit(whiteToLocus[i]);
-			println(xyY);
 		}
 	}
 }

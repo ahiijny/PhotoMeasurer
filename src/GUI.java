@@ -32,13 +32,16 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
 import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableModel;
 
 public class GUI extends JFrame 
@@ -58,15 +61,14 @@ public class GUI extends JFrame
 		}
 		
 		new GUI();
-	}
-	
-	public static final int tableSize = 128;
+	}		
 	
 	public static final int NONE = 0;
 	public static final int ANGLE = 1;
 	public static final int PRIMER = 2;
 	public static final int RULER = 3;
 	public static final int COLOR = 4;
+	public static final int WAVELENGTH = 5;
 	
 	public static final int MAKE = 0;
 	public static final int MODEL = 1;
@@ -79,27 +81,30 @@ public class GUI extends JFrame
 	public static final int FOCUS = 8;
 	public static final int ISO = 9;
 	public static final int BIAS = 10;
-	public static final int ZOOM = 11;
-	public static final int WB_RED = 12;
-	public static final int WB_GREEN = 13;
-	public static final int WB_BLUE = 14;
-	
-	public static final Font courier = new Font("Courier New", Font.PLAIN, 12);
+	public static final int WB_RED = 11;
+	public static final int WB_GREEN = 12;
+	public static final int WB_BLUE = 13;
+		
+	public static final Font fontCourier = new Font("Courier New", Font.PLAIN, 12);
+	public static final Font fontHeader = new Font("Verdana", Font.PLAIN, 12);
 	
 	public static final int[] pointCount = {0, 3, 2, 2, 1};
-	public static final String[] specLabels = {"Make", "Model", "Width", "Height", "Date", "Time", "Shutter(s)", "f/D", "Focus(mm)", "ISO", "Exp Bias(EV)", "Zoom", "WB red", "WB green", "WB blue"};
+	public static final String[] specLabels = {"Make", "Model", "Width", "Height", "Date", "Time", "Shutter(s)", "f/D", "Focus(mm)", "ISO", "Exp Bias(EV)", "WB red", "WB green", "WB blue"};
 	
-	public JTextField[] fieldImSpecs = new JTextField[specLabels.length];
+	public MyActionListener myActionListener = new MyActionListener();	
+	public MenuListener menuListener = new MenuListener();
 	
-	private File directory = new File(""); // initialize dir to current dir
-	
+	public JTextField[] fieldImSpecs = new JTextField[specLabels.length];	
+	private File directory = new File(""); // initialize dir to current dir	
 	public String defaultStatus = "Become the literally I know lives.";
 
 	public JPanel content;
+	public JPanel paneCenter, paneLeft, paneRight, paneBottom, paneTop, paneSpecWrapper;
+	public JPanel[] panesMeasurement = new JPanel[6];
 	public ImagePanel ip;
 	
-	public JButton[] measureButtons = new JButton[5];	
-	public JButton moveButton;	
+	public JButton[] buttonsMeasure = new JButton[5];	
+	public JButton buttonMove;	
 	public int mode = 0;
 	
 	public JLabel positionLabel;
@@ -109,15 +114,22 @@ public class GUI extends JFrame
 	public JComboBox<String> renderCtrl;
 	public JTable table;
 	
-	public JTextField[] fieldXYZ, fieldLambdaCurve, fieldLambdaTrunc; 
-	public JTextField fieldColor, fieldRGB;
+	public JTextField[] fieldXYZ, fieldLambdaCurve, fieldLambdaExtrap, fieldLambdaTrunc; 
+	public JTextField fieldColor, fieldRGB, fieldTableIndex, fieldTableSize;
+	
+	public JButton buttonTableIndex, buttonTableSize;
+	
+	public JToggleButton buttonLog;
 	
 	public int xorBack = Color.white.getRGB();
 	public int xorFront = Color.black.getRGB();
 	
 	public int tableIndex = 0;
+	public int tableSize = 128;
+	public int tableCols = 6;
 		
-	public boolean movingMode = false;	
+	public boolean movingMode = false;
+	public boolean isLogging = true;
 	public double zoomStep = 0.1;	// The increase in zoom (1 = 100%) per scroll increment
 	
 	private KeyboardFocusManager manager;
@@ -168,14 +180,14 @@ public class GUI extends JFrame
 		button.setMnemonic('o');
 		button.setAccelerator(KeyStroke.getKeyStroke (
 				KeyEvent.VK_O, menuKeyMask));
-		button.addActionListener (new MenuListener ());
+		button.addActionListener (menuListener);
 		file.add(button);
 		
 		file.add(new JSeparator());
 
 		button = new JMenuItem ("Exit"); // exit button
 		button.setMnemonic('x');
-		button.addActionListener (new MenuListener ());
+		button.addActionListener (menuListener);
 		file.add(button);
 		
 		// "View" Menu
@@ -185,7 +197,7 @@ public class GUI extends JFrame
 		
 		button = new JMenuItem ("Jump to Origin");
 		button.setMnemonic('j');
-		button.addActionListener(new MenuListener());
+		button.addActionListener(menuListener);
 		view.add(button);
 
 		// "Help" Menu
@@ -194,12 +206,17 @@ public class GUI extends JFrame
 		
 		button = new JMenuItem ("Controls"); // controls button
 		button.setMnemonic('c');
-		button.addActionListener (new MenuListener());
+		button.addActionListener (menuListener);
+		help.add(button);
+		
+		button = new JMenuItem ("Formatting"); // controls button
+		button.setMnemonic('f');
+		button.addActionListener (menuListener);
 		help.add(button);
 
 		button = new JMenuItem ("About"); // about button
 		button.setMnemonic('a');
-		button.addActionListener (new MenuListener());
+		button.addActionListener (menuListener);
 		help.add(button);
 
 
@@ -214,14 +231,25 @@ public class GUI extends JFrame
 	
 	private JPanel createContent()
 	{
+		// Init Measurement Panels
+		
+		for (int i = 0; i < 6; i++)
+			panesMeasurement[i] = getMeasurementPanel(i);
+		
+		// Create content panes
+		
+		paneCenter = createCenterPanel();
+		paneLeft = createLeftPanel();
+		paneRight = createRightPanel();
+		paneBottom = createBottomPanel();
+		
 		// Add panels to content pane
-
+		
 		content = new JPanel(new BorderLayout());
-		content.add(createMiddlePanel(),BorderLayout.CENTER);
-		content.add(createLeftPanel(),BorderLayout.WEST);
-		content.add(createRightPanel(),BorderLayout.EAST);
-		//content.add(createTopPanel(),BorderLayout.NORTH);
-		content.add(createBottomPanel(),BorderLayout.SOUTH);
+		content.add(paneCenter, BorderLayout.CENTER);
+		content.add(paneLeft, BorderLayout.WEST);
+		content.add(paneRight, BorderLayout.EAST);
+		content.add(paneBottom, BorderLayout.SOUTH);
 						
 		return content;
 	}
@@ -239,174 +267,24 @@ public class GUI extends JFrame
 	 */
 	private JPanel createRightPanel()
 	{	
-		// Control panel
-		
-		JPanel control = new JPanel();		
-		control.setLayout(new BoxLayout(control, BoxLayout.PAGE_AXIS));
-		
-		// Add buttons to control panel
-
-		JButton button = new JButton("Load");
-		button.addActionListener(new MyActionListener());
-		control.add(button);	
-		
-		control.add(new JLabel("  "));
-
-		measureButtons[ANGLE] = new JButton("Angle");
-		measureButtons[ANGLE].addActionListener(new MyActionListener());
-		control.add(measureButtons[ANGLE]);
-
-		measureButtons[PRIMER] = new JButton("Primer");
-		measureButtons[PRIMER].addActionListener(new MyActionListener());
-		control.add(measureButtons[PRIMER]);
-
-		measureButtons[RULER] = new JButton("Ruler");
-		measureButtons[RULER].addActionListener(new MyActionListener());
-		control.add(measureButtons[RULER]);
-					
-		measureButtons[COLOR] = new JButton("Color");
-		measureButtons[COLOR].addActionListener(new MyActionListener());
-		control.add(measureButtons[COLOR]);
-		
-		control.add(new JLabel("  "));
-		
-		moveButton = new JButton("Move");
-		moveButton.addActionListener(new MyActionListener());
-		control.add(moveButton);
-		
-		button = new JButton("Clear");
-		button.addActionListener(new MyActionListener());
-		control.add(button);	
-		
-		// Image specs panel
-				
-		JPanel specs = new JPanel(new GridBagLayout());
-		GridBagConstraints c = new GridBagConstraints();
-		c.insets = new Insets(2,4,2,4);
-		c.gridx = c.gridy = 0;
-		c.fill = GridBagConstraints.HORIZONTAL;
-		
-		// Image data
-		
-		for (int i = 0; i < specLabels.length; i++)
-		{
-			JLabel label = new JLabel(specLabels[i]);
-			label.setFont(courier);
-			
-			fieldImSpecs[i] = new JTextField(10);
-			fieldImSpecs[i].setEditable(false);
-			fieldImSpecs[i].setBackground(Color.white);
-			
-			c.weightx = 0;
-			gridBagAdd(specs, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
-			
-			c.weightx = 1;
-			gridBagAdd(specs, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldImSpecs[i]);
-			
-		}
-		
-		gridBagSeparator(specs, c, 0, ++c.gridy, 2);
-		
-		// RGB Color sensor
-		
-		JLabel label = new JLabel("Color");
-		label.setFont(courier);		
-		fieldColor = new JTextField(12);
-		fieldColor.setFont(courier);
-		fieldColor.setEditable(false);		
-		gridBagAdd(specs, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
-		gridBagAdd(specs, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldColor);
-		
-		label = new JLabel("RGB");
-		label.setFont(courier);		
-		fieldRGB = new JTextField(12);
-		fieldRGB.setFont(courier);
-		fieldRGB.setEditable(false);		
-		gridBagAdd(specs, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
-		gridBagAdd(specs, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldRGB);		
-		fieldRGB.setBackground(Color.white);		
-		
-		// RGB to XYZ
-		
-		gridBagSeparator(specs, c, 0, ++c.gridy, 2);
-		
-		fieldXYZ = new JTextField[3];
-		String[] labels = {"X", "Y", "Z"};
-						
-		for (int i = 0; i < 3; i++)
-		{
-			label = new JLabel(labels[i]);
-			label.setFont(courier);	
-			
-			fieldXYZ[i] = new JTextField(12);
-			fieldXYZ[i].setFont(courier);
-			fieldXYZ[i].setEditable(false);
-			fieldXYZ[i].setBackground(Color.white);
-			
-			gridBagAdd(specs, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
-			gridBagAdd(specs, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldXYZ[i]);
-		}
-		
-		gridBagSeparator(specs, c, 0, ++c.gridy, 2);
-		
-		// Curve Fitting Method
-		
-		label = new JLabel("Wavelength - Curve Fitting Method"); 
-		gridBagAdd(specs, c, 0, ++c.gridy, 2, GridBagConstraints.FIRST_LINE_START, label);
-		
-		fieldLambdaCurve = new JTextField[4];
-		labels = new String[] {"Best \u03BB(nm)", "SE of X fit(nm)", "SE of Y fit(nm)", "SE of Z fit(nm)"};
-		
-		for (int i = 0; i < 4; i++)
-		{
-			label = new JLabel(labels[i]);
-			label.setFont(courier);	
-			
-			fieldLambdaCurve[i] = new JTextField(12);
-			fieldLambdaCurve[i].setFont(courier);
-			fieldLambdaCurve[i].setEditable(false);
-			fieldLambdaCurve[i].setBackground(Color.white);
-			
-			gridBagAdd(specs, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
-			gridBagAdd(specs, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldLambdaCurve[i]);
-		}
-						
-		gridBagSeparator(specs, c, 0, ++c.gridy, 2);
-		
-		// Inverse Truncation Method
-		
-		label = new JLabel("Wavelength - Inverse Truncation Method"); 
-		gridBagAdd(specs, c, 0, ++c.gridy, 2, GridBagConstraints.FIRST_LINE_START, label);
-		
-		fieldLambdaTrunc = new JTextField[2];
-		labels = new String[] {"Best \u03BB(nm)", "SSE of fit"};
-		
-		for (int i = 0; i < 2; i++)
-		{
-			label = new JLabel(labels[i]);
-			label.setFont(courier);	
-			
-			fieldLambdaTrunc[i] = new JTextField(12);
-			fieldLambdaTrunc[i].setFont(courier);
-			fieldLambdaTrunc[i].setEditable(false);
-			fieldLambdaTrunc[i].setBackground(Color.white);
-			
-			gridBagAdd(specs, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
-			gridBagAdd(specs, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldLambdaTrunc[i]);
-		}
-		
-		setColor(Color.white);
+		JPanel control = getControlPanel();	
+		JPanel specs = getImageSpecsPanel();		
+		JPanel measurementPanel = panesMeasurement[mode];
 		
 		// Wrap specs
+						
+		paneSpecWrapper = new JPanel(new BorderLayout());
+		paneSpecWrapper.add(specs, BorderLayout.NORTH);
+		paneSpecWrapper.add(measurementPanel, BorderLayout.CENTER);
 		
-		JPanel specWrapper = new JPanel(new BorderLayout());
-		specWrapper.add(specs, BorderLayout.NORTH);
+		JPanel wrapperWrapper = new JPanel(new BorderLayout());
+		wrapperWrapper.add(paneSpecWrapper, BorderLayout.NORTH);
 		
 		// Combine panels
 		
 		JPanel right = new JPanel(new BorderLayout());
 		right.add(control, BorderLayout.EAST);
-		right.add(specWrapper, BorderLayout.WEST);
+		right.add(wrapperWrapper, BorderLayout.WEST);
 		
 		return right;
 	}
@@ -441,7 +319,7 @@ public class GUI extends JFrame
 		zoomCtrl.setPreferredSize(new Dimension (56, 20));
 		zoomCtrl.setEditable(true);
 		zoomCtrl.setSelectedIndex(5);
-		zoomCtrl.addActionListener(new MyActionListener());
+		zoomCtrl.addActionListener(myActionListener);
 		stats1.add(zoomCtrl);
 		
 		positionLabel = new JLabel("0,0");
@@ -460,7 +338,7 @@ public class GUI extends JFrame
 		renderCtrl.setPreferredSize(new Dimension (64, 20));
 		renderCtrl.setEditable(false);
 		renderCtrl.setSelectedIndex(0);
-		renderCtrl.addActionListener(new MyActionListener());
+		renderCtrl.addActionListener(myActionListener);
 		stats3.add(renderCtrl);
 		
 		return bottom;
@@ -468,7 +346,7 @@ public class GUI extends JFrame
 
 	/** Initializes the image panel, which holds and draws the image.
 	 */
-	private JPanel createMiddlePanel()
+	private JPanel createCenterPanel()
 	{
 		ip = new ImagePanel(this);
 		ip.addMouseListener (new MyMouseListener());
@@ -488,28 +366,286 @@ public class GUI extends JFrame
 		
 		GridBagConstraints c = new GridBagConstraints();
 		c.gridx = c.gridy = 0;
-		c.insets = new Insets(10,10,10,10);
+		c.insets = new Insets(2,2,2,2);
 		c.fill = GridBagConstraints.HORIZONTAL;
 		c.weightx = 1;
 		c.weighty = 0;
 		
-		JPanel tableWrapper = new JPanel(new BorderLayout());
-		table = new JTable(tableSize, 2);
-		tableWrapper.add(table, BorderLayout.CENTER);
-		tableWrapper.add(table.getTableHeader(), BorderLayout.NORTH);
-		table.getTableHeader().setReorderingAllowed(false);
+		// Index set
+		
+		JLabel label = new JLabel("Input index:");
+		fieldTableIndex = new JTextField(5);
+		buttonTableIndex = new JButton("Set");
+		buttonTableIndex.addActionListener(myActionListener);
+		
+		gridBagAdd(data, c, 0, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
+		gridBagAdd(data, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldTableIndex);
+		gridBagAdd(data, c, 2, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, buttonTableIndex);
+		
+		// Size set
+		
+		label = new JLabel("Table size:");
+		fieldTableSize = new JTextField(5);
+		buttonTableSize = new JButton("Set");
+		buttonTableSize.addActionListener(myActionListener);
+		
+		gridBagAdd(data, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
+		gridBagAdd(data, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldTableSize);
+		gridBagAdd(data, c, 2, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, buttonTableSize);
+		
+		// Table
+			
+		table = new JTable(tableSize, tableCols);		
+		table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF); 
+		JScrollPane tableWrapper = new JScrollPane(table, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+		tableWrapper.setPreferredSize(new Dimension(170, 1));
+		System.out.println(tableWrapper.getPreferredSize());
+		
+		table.getTableHeader().setReorderingAllowed(false);				
 				  
-		gridBagAdd(data, c, 0, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, tableWrapper);
+		c.fill = GridBagConstraints.VERTICAL;
+		c.weighty = c.weightx = 1;
+		gridBagAdd(data, c, 0, ++c.gridy, 3, GridBagConstraints.FIRST_LINE_START, tableWrapper);
+				
+		refreshLeftPanel();
 		
 		return data;
 	}
 	
-	private void gridBagAdd(JPanel panel, GridBagConstraints c, int x, int y, JComponent comp)
+	private JPanel getControlPanel()
 	{
-		gridBagAdd(panel, c, x, y, 1, GridBagConstraints.FIRST_LINE_START, comp);		
+		// Control panel
+		
+		JPanel control = new JPanel();		
+		control.setLayout(new BoxLayout(control, BoxLayout.PAGE_AXIS));
+		
+		// Add buttons to control panel
+
+		JButton button = new JButton("Load");
+		button.addActionListener(myActionListener);
+		control.add(button);	
+		
+		control.add(new JLabel("  "));
+		
+		buttonLog = new JToggleButton("Log");
+		buttonLog.setSelected(true);
+		buttonLog.addActionListener(myActionListener);
+		control.add(buttonLog);
+		
+		control.add(new JLabel("  "));
+
+		buttonsMeasure[ANGLE] = new JButton("Angle");
+		buttonsMeasure[ANGLE].addActionListener(myActionListener);
+		control.add(buttonsMeasure[ANGLE]);
+
+		buttonsMeasure[PRIMER] = new JButton("Primer");
+		buttonsMeasure[PRIMER].addActionListener(myActionListener);
+		control.add(buttonsMeasure[PRIMER]);
+
+		buttonsMeasure[RULER] = new JButton("Ruler");
+		buttonsMeasure[RULER].addActionListener(myActionListener);
+		control.add(buttonsMeasure[RULER]);
+					
+		buttonsMeasure[COLOR] = new JButton("Color");
+		buttonsMeasure[COLOR].addActionListener(myActionListener);
+		control.add(buttonsMeasure[COLOR]);
+		
+		control.add(new JLabel("  "));
+		
+		buttonMove = new JButton("Move");
+		buttonMove.addActionListener(myActionListener);
+		control.add(buttonMove);
+		
+		button = new JButton("Clear");
+		button.addActionListener(myActionListener);
+		control.add(button);
+		
+		return control;
 	}
 	
-	private void gridBagAdd(JPanel panel, GridBagConstraints c, int x, int y, int width, int align, JComponent comp)
+	private JPanel getImageSpecsPanel()
+	{
+		// Image specs panel
+		
+		JPanel specs = new JPanel(new GridBagLayout());
+		GridBagConstraints c = new GridBagConstraints();
+		c.insets = new Insets(2,4,2,4);
+		c.gridx = c.gridy = 0;
+		c.fill = GridBagConstraints.HORIZONTAL;
+		
+		// Header
+		
+		JLabel label = new JLabel ("Image metadata");
+		label.setFont(fontHeader);
+		gridBagAdd(specs, c, 0, c.gridy, 2, GridBagConstraints.FIRST_LINE_START, label);
+		
+		// Image data
+		
+		for (int i = 0; i < specLabels.length; i++)
+		{
+			label = new JLabel(specLabels[i]);
+			label.setFont(fontCourier);
+			
+			fieldImSpecs[i] = new JTextField(14);
+			fieldImSpecs[i].setEditable(false);
+			fieldImSpecs[i].setBackground(Color.white);
+			
+			c.weightx = 0;
+			gridBagAdd(specs, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
+			
+			c.weightx = 1;
+			gridBagAdd(specs, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldImSpecs[i]);
+			
+		}
+		
+		gridBagSeparator(specs, c, 0, ++c.gridy, 2);
+		
+		return specs;
+	}
+	
+	private JPanel getMeasurementPanel(int panelMode)
+	{
+		if (panelMode == COLOR)
+			return getColorPanel();
+		else
+			return new JPanel();
+	}
+	
+	private JPanel getColorPanel()
+	{
+		JPanel color = new JPanel(new GridBagLayout());
+		GridBagConstraints c = new GridBagConstraints();
+		c.gridx = c.gridy = 0;
+		c.insets = new Insets(2,4,2,4);
+		c.fill = GridBagConstraints.HORIZONTAL;
+		
+		// RGB Color sensor
+		
+		JLabel label = new JLabel("Color");
+		label.setFont(fontCourier);		
+		fieldColor = new JTextField(13);
+		fieldColor.setFont(fontCourier);
+		fieldColor.setEditable(false);		
+		gridBagAdd(color, c, 0, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
+		gridBagAdd(color, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldColor);
+		
+		label = new JLabel("RGB");
+		label.setFont(fontCourier);		
+		fieldRGB = new JTextField(13);
+		fieldRGB.setFont(fontCourier);
+		fieldRGB.setEditable(false);		
+		gridBagAdd(color, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
+		gridBagAdd(color, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldRGB);		
+		fieldRGB.setBackground(Color.white);		
+		
+		// RGB to XYZ
+		
+		gridBagSeparator(color, c, 0, ++c.gridy, 2);
+		
+		fieldXYZ = new JTextField[3];
+		String[] labels = {"X", "Y", "Z"};
+						
+		for (int i = 0; i < 3; i++)
+		{
+			label = new JLabel(labels[i]);
+			label.setFont(fontCourier);	
+			
+			fieldXYZ[i] = new JTextField(13);
+			fieldXYZ[i].setFont(fontCourier);
+			fieldXYZ[i].setEditable(false);
+			fieldXYZ[i].setBackground(Color.white);
+			
+			gridBagAdd(color, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
+			gridBagAdd(color, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldXYZ[i]);
+		}
+		
+		gridBagSeparator(color, c, 0, ++c.gridy, 2);
+		
+		// Curve Fitting Method
+		
+		label = new JLabel("Wavelength - Curve Fitting Method"); 
+		gridBagAdd(color, c, 0, ++c.gridy, 2, GridBagConstraints.FIRST_LINE_START, label);
+		
+		fieldLambdaCurve = new JTextField[4];
+		labels = new String[] {"Best \u03BB(nm)", "SE of X fit(nm)", "SE of Y fit(nm)", "SE of Z fit(nm)"};
+		
+		for (int i = 0; i < 4; i++)
+		{
+			label = new JLabel(labels[i]);
+			label.setFont(fontCourier);	
+			
+			fieldLambdaCurve[i] = new JTextField(13);
+			fieldLambdaCurve[i].setFont(fontCourier);
+			fieldLambdaCurve[i].setEditable(false);
+			fieldLambdaCurve[i].setBackground(Color.white);
+			
+			gridBagAdd(color, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
+			gridBagAdd(color, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldLambdaCurve[i]);
+		}
+						
+		gridBagSeparator(color, c, 0, ++c.gridy, 2);
+		
+		// Inverse truncation method
+	
+		label = new JLabel("Wavelength - Inverse Truncation Method"); 
+		gridBagAdd(color, c, 0, ++c.gridy, 2, GridBagConstraints.FIRST_LINE_START, label);
+		
+		fieldLambdaTrunc = new JTextField[2];
+		labels = new String[] {"Best \u03BB(nm)", "SSE of fit"};
+		
+		for (int i = 0; i < 2; i++)
+		{
+			label = new JLabel(labels[i]);
+			label.setFont(fontCourier);	
+			
+			fieldLambdaTrunc[i] = new JTextField(13);
+			fieldLambdaTrunc[i].setFont(fontCourier);
+			fieldLambdaTrunc[i].setEditable(false);
+			fieldLambdaTrunc[i].setBackground(Color.white);
+			
+			gridBagAdd(color, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
+			gridBagAdd(color, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldLambdaTrunc[i]);
+		}
+		
+		gridBagSeparator(color, c, 0, ++c.gridy, 2);
+		
+		// Saturation Extrapolation Method
+		
+		label = new JLabel("Wavelength - Sat Extrapolation Method"); 
+		gridBagAdd(color, c, 0, ++c.gridy, 2, GridBagConstraints.FIRST_LINE_START, label);
+		
+		fieldLambdaExtrap = new JTextField[2];
+		labels = new String[] {"Best \u03BB(nm)", "SSE of fit"};
+		
+		for (int i = 0; i < 2; i++)
+		{
+			label = new JLabel(labels[i]);
+			label.setFont(fontCourier);	
+			
+			fieldLambdaExtrap[i] = new JTextField(13);
+			fieldLambdaExtrap[i].setFont(fontCourier);
+			fieldLambdaExtrap[i].setEditable(false);
+			fieldLambdaExtrap[i].setBackground(Color.white);
+			
+			gridBagAdd(color, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
+			gridBagAdd(color, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldLambdaExtrap[i]);
+		}
+		
+		displayColor(Color.white);
+		
+		return color;
+	}
+	
+	public void clearTable()
+	{
+		DefaultTableModel dtm = new DefaultTableModel(tableSize, tableCols);
+		table.setModel(dtm);
+		table.setEditingRow(0);
+		tableIndex = 0;
+		refreshLeftPanel();
+	}
+	
+	protected void gridBagAdd(JPanel panel, GridBagConstraints c, int x, int y, int width, int align, JComponent comp)
 	{
 		c.gridx = x;
 		c.gridy = y;
@@ -518,7 +654,7 @@ public class GUI extends JFrame
 		panel.add(comp, c);
 	}	
 	
-	private void gridBagSeparator(JPanel panel, GridBagConstraints c, int x, int y, int width)
+	protected void gridBagSeparator(JPanel panel, GridBagConstraints c, int x, int y, int width)
 	{
 		c.gridx = x;
 		c.gridy = y;
@@ -528,6 +664,34 @@ public class GUI extends JFrame
 		c.fill = GridBagConstraints.HORIZONTAL;
 		panel.add(sep, c);
 		c.fill = GridBagConstraints.NONE;
+	}
+	
+	/** Assumes that all of the required points are already
+	 * present in ip.vertices[]. 
+	 * 
+	 * @param mode 		the measurement type
+	 */
+	protected void makeMeasurement(int mode)
+	{
+		if (mode == ANGLE)
+		{
+			if (isLogging)
+				tableAppend(Calc.findAngle(ip.vertices[0], ip.vertices[1], ip.vertices[2]));
+		}
+		else if (mode == RULER)
+		{
+			if (isLogging)
+				tableAppend(Calc.findDistance(ip.vertices[0], ip.vertices[1], ip.pixelsPerMM));
+		}
+		else if (mode == PRIMER)
+		{
+			promptPrimerDistance();
+			setMeasuringMode(NONE);
+		}
+		else if (mode == COLOR)
+		{
+			displayColor(ip.getPixel(ip.vertices[0]));
+		}		
 	}
 	
 	/** Tries to set the specified zoom. If invalid, sets the JComboBox
@@ -571,6 +735,50 @@ public class GUI extends JFrame
 			
 			repaint();
 		}		
+	}
+	
+	public void inputTableSize()
+	{
+		try
+		{
+			int size = Integer.parseInt(fieldTableSize.getText());
+			setTableSize(size);
+		}
+		catch(Exception e)
+		{			
+		}
+		refreshLeftPanel();		
+	}
+	
+	public void setTableSize(int size)
+	{
+		if (size >= 0)
+		{
+			tableSize = size;
+			DefaultTableModel dtm = (DefaultTableModel)table.getModel();
+			dtm.setRowCount(size);
+			table.setModel(dtm);
+		}
+	}
+	
+	public void inputTableIndex()
+	{
+		try
+		{
+			int index = Integer.parseInt(fieldTableIndex.getText());
+			setTableIndex(index);
+			
+		}
+		catch (Exception e)
+		{			
+		}
+		refreshLeftPanel();
+	}
+	
+	public void setTableIndex(int index)
+	{
+		if (index >= 0 && index < tableSize)
+			tableIndex = index;
 	}
 	
 	/** Reads image from file and loads it into ImagePanel. 
@@ -625,12 +833,12 @@ public class GUI extends JFrame
 		if (move)
 		{
 			movingMode = true;
-			moveButton.setText("Stop");			
+			buttonMove.setText("Stop");			
 		}
 		else
 		{
 			movingMode = false;
-			moveButton.setText("Move");
+			buttonMove.setText("Move");
 		}
 	}
 	
@@ -641,23 +849,37 @@ public class GUI extends JFrame
 	 */
 	public void setMeasuringMode(int newMode)
 	{
-		if (mode == newMode || newMode == NONE)
+		int oldMode = mode;
+		System.out.println(oldMode + " " + newMode);			
+				
+		// Set the mode
+				
+		if (mode == newMode || newMode == NONE) // Either unselect current mode or set mode to NONE
 		{
 			writeStatus(defaultStatus);
 			setCursor(Cursor.getDefaultCursor());
 			mode = NONE;
 			ip.vertexIndex = 0;
-			for (int i = 1; i < measureButtons.length; i++)
-				measureButtons[i].setEnabled(true);
+			for (int i = 1; i < buttonsMeasure.length; i++)
+				buttonsMeasure[i].setEnabled(true);
 		}
-		else
+		else // Selecting a new mode
 		{
 			setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
 			mode = newMode;
-			for (int i = 1; i < measureButtons.length; i++)
+			
+			// Disable all other buttons
+			
+			for (int i = 1; i < buttonsMeasure.length; i++)
 				if (i != mode)
-					measureButtons[i].setEnabled(false);
-		}		
+					buttonsMeasure[i].setEnabled(false);
+		}	
+		
+		// Change right panel to reflect current mode
+		
+		paneSpecWrapper.remove(panesMeasurement[oldMode]);
+		paneSpecWrapper.add(panesMeasurement[mode], BorderLayout.SOUTH);
+		revalidate();
 	}
 	
 	private void updateMove(Point now)
@@ -684,7 +906,8 @@ public class GUI extends JFrame
 		table.getModel().setValueAt(value + "", tableIndex, 0);
 		tableIndex++;
 		if (tableIndex >= tableSize)
-			tableIndex = 0;	
+			setTableSize(2 * tableSize);
+		refreshLeftPanel();
 	}
 	
 	/** Calls up the JOptionPane to input primer distance. 
@@ -708,7 +931,7 @@ public class GUI extends JFrame
 		}
 	}	
 	
-	public void setColor(Color color)
+	public void displayColor(Color color)
 	{
 		// Set RGB color
 		
@@ -725,7 +948,7 @@ public class GUI extends JFrame
     	fieldXYZ[1].setText(Calc.precise8.format(XYZ[1]));
     	fieldXYZ[2].setText(Calc.precise8.format(XYZ[2])); 
     	
-    	// Get Wavelength
+    	// Get wavelength from curve fitting method
     	
     	double[] results = Calc.getPrimaryWavelengthCurveFit(XYZ);
     	fieldLambdaCurve[0].setText(Calc.whole.format(results[0]));
@@ -733,31 +956,51 @@ public class GUI extends JFrame
     	fieldLambdaCurve[2].setText(Calc.precise8.format(results[2]));
     	fieldLambdaCurve[3].setText(Calc.precise8.format(results[3]));
     	
-    	results = Calc.getPrimaryWavelengthInverseTruncate(XYZ);
+    	// Get wavelength from inverse truncation method
+    	
+    	results = Calc.getPrimaryWavelengthCurveFit(XYZ);
     	fieldLambdaTrunc[0].setText(Calc.whole.format(results[0]));
     	fieldLambdaTrunc[1].setText(Calc.precise8.format(results[1]));
+    	
+    	// Get wavelength from saturation extrapolation method
+    	
+    	results = Calc.getPrimaryWavelengthSatExtrap(XYZ);
+    	fieldLambdaExtrap[0].setText(Calc.whole.format(results[0]));
+    	fieldLambdaExtrap[1].setText(Calc.precise8.format(results[1]));
 	}
 	
 	public void refresh()
 	{
 		if (ip.mm != null)
 		{
-			fieldImSpecs[MODEL].setText(ip.mm.model);
-			fieldImSpecs[MAKE].setText(ip.mm.make);
-			fieldImSpecs[WIDTH].setText(Calc.whole.format(ip.mm.size.width));
-			fieldImSpecs[HEIGHT].setText(Calc.whole.format(ip.mm.size.height));
-			fieldImSpecs[DATE].setText(Calc.date.format(ip.mm.date));
-			fieldImSpecs[TIME].setText(Calc.time.format(ip.mm.date));
-			fieldImSpecs[SHUTTER].setText(Calc.precise8.format(ip.mm.exposure));
-			fieldImSpecs[FNUMBER].setText(Calc.precise8.format(ip.mm.fnumber));
-			fieldImSpecs[FOCUS].setText(Calc.precise8.format(ip.mm.focus));
-			fieldImSpecs[ISO].setText(Calc.whole.format(ip.mm.iso));
-			fieldImSpecs[BIAS].setText(Calc.precise8.format(ip.mm.exposureBias));
-			fieldImSpecs[ZOOM].setText(Calc.precise8.format(ip.mm.zoom));
-			fieldImSpecs[WB_RED].setText(Calc.whole.format(ip.mm.wb_red));
-			fieldImSpecs[WB_GREEN].setText(Calc.whole.format(ip.mm.wb_green));
-			fieldImSpecs[WB_BLUE].setText(Calc.whole.format(ip.mm.wb_blue));
-		}
+			try
+			{
+				fieldImSpecs[MODEL].setText(ip.mm.model);
+				fieldImSpecs[MAKE].setText(ip.mm.make);
+				fieldImSpecs[WIDTH].setText(Calc.whole.format(ip.mm.size.width));
+				fieldImSpecs[HEIGHT].setText(Calc.whole.format(ip.mm.size.height));
+				fieldImSpecs[DATE].setText(Calc.date.format(ip.mm.date));
+				fieldImSpecs[TIME].setText(Calc.time.format(ip.mm.date));
+				fieldImSpecs[SHUTTER].setText(Calc.precise8.format(ip.mm.exposure));
+				fieldImSpecs[FNUMBER].setText(Calc.precise8.format(ip.mm.fnumber));
+				fieldImSpecs[FOCUS].setText(Calc.precise8.format(ip.mm.focus));
+				fieldImSpecs[ISO].setText(Calc.whole.format(ip.mm.iso));
+				fieldImSpecs[BIAS].setText(Calc.precise8.format(ip.mm.exposureBias));
+				fieldImSpecs[WB_RED].setText(Calc.whole.format(ip.mm.wb_red));
+				fieldImSpecs[WB_GREEN].setText(Calc.whole.format(ip.mm.wb_green));
+				fieldImSpecs[WB_BLUE].setText(Calc.whole.format(ip.mm.wb_blue));
+			}
+			catch (Exception e)
+			{				
+			}
+		}	
+		refreshLeftPanel();
+	}
+	
+	public void refreshLeftPanel()
+	{
+		fieldTableIndex.setText("" + tableIndex);
+		fieldTableSize.setText("" + tableSize);
 	}
 
 	/** Action Listener for the buttons.
@@ -778,11 +1021,7 @@ public class GUI extends JFrame
 				}
 				else if (button.getText().equals("Clear"))
 				{
-					TableModel model = table.getModel();
-					for (int i = 0; i < model.getRowCount(); i++)
-						model.setValueAt("", i, 0);
-					table.setEditingRow(0);
-					tableIndex = 0;
+					clearTable();
 				}
 				else if (button.getText().equals("Angle"))
 				{
@@ -805,6 +1044,20 @@ public class GUI extends JFrame
 				{
 					setMeasuringMode(COLOR);
 				}
+				else if (button.equals(buttonTableIndex))
+				{
+					inputTableIndex();
+				}
+				else if (button.equals(buttonTableSize))
+				{
+					inputTableSize();
+				}
+			}
+			else if (parent instanceof JToggleButton)
+			{
+				JToggleButton button = (JToggleButton)parent;
+				if (button.equals(buttonLog))
+					isLogging = buttonLog.isSelected();
 			}
 			else if (parent instanceof JComboBox<?>)
 			{
@@ -833,7 +1086,7 @@ public class GUI extends JFrame
 			if (!movingMode) // Do not do anything if in moving mode
 			{
 				if (mode != NONE) // If in a measuring mode
-				{
+				{					
 					// Reset the measurement mode if necessary
 					
 					if (ip.vertexIndex >= pointCount[mode])
@@ -844,38 +1097,12 @@ public class GUI extends JFrame
 					ip.vertices[ip.vertexIndex] = ip.getImageCoordinates(e.getPoint());
 					ip.vertexIndex++;
 					
-					if (mode == ANGLE)
-					{
-						if (ip.vertexIndex == 3) // Determine angle once 3 points are had
-						{
-							tableAppend(Calc.findAngle(ip.vertices[0], ip.vertices[1], ip.vertices[2]));
-						}
-					}
-					else if (mode == RULER || mode == PRIMER)
-					{
-						if (ip.vertexIndex == 2) // Determine length once 2 points are had
-						{
-							if (mode == RULER)
-							{
-								tableAppend(Calc.findDistance(ip.vertices[0], ip.vertices[1], ip.pixelsPerMM));
-							}
-							else
-							{
-								promptPrimerDistance();
-								setMeasuringMode(NONE);
-							}
-						}
-					}
-					else if (mode == COLOR)
-					{
-						if (ip.vertexIndex == 1) // Determine color once 1 point is had
-						{
-							setColor(ip.getPixel(ip.vertices[0]));
-						}
-					}
+					// Make the measurement if the required number of points are had
+					
+					if (ip.vertexIndex == pointCount[mode])
+						makeMeasurement(mode);
 				}
 			}			
-					
 		}
 
 		@Override
@@ -956,13 +1183,21 @@ public class GUI extends JFrame
 					ip.setOffset(new Point(0, 0));
 					repaint();
 				}
+				else if (name.equals("Formatting"))
+				{
+					String str = "Length[1]: {length}\n";
+					str += "Angle[1]: {angle in degrees}\n";
+					str += "Color[6]: {R, G, B, X, Y, Z}\n";
+							
+					JOptionPane.showMessageDialog(GUI.this, str, "Data Format", JOptionPane.PLAIN_MESSAGE);			
+				}
 				else if (name.equals("Controls"))
 				{
 					String str = "Shortcut keys:\n";
 					str += "Shift + drag: move image\n";
 					str += "Scroll: zoom\n";
 							
-					JOptionPane.showMessageDialog(GUI.this, str, "About", JOptionPane.PLAIN_MESSAGE);			
+					JOptionPane.showMessageDialog(GUI.this, str, "Controls", JOptionPane.PLAIN_MESSAGE);			
 				}
 				else if (name.equals("About"))
 				{
