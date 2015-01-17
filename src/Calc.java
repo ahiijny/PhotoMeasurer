@@ -9,6 +9,9 @@ public class Calc
 	public static final int GREEN = 1;
 	public static final int BLUE = 2;
 	
+	public static final int X = 0;
+	public static final int Y = 1;
+	
 	public static final double[][] XYZtoRGBlin = 
 	{
 		{3.2406, -1.5372, -0.4986},
@@ -35,7 +38,7 @@ public class Calc
 	public static DecimalFormat precise8 = new DecimalFormat("0.########");
 	public static DecimalFormat precise12 = new DecimalFormat("0.############");
 	
-	
+		
 	/** (http://chemistry.about.com/od/workedchemistryproblems/a/scalar-product-vectors-problem.htm) <p>
 	 * 
 	 * A &middot; B = |A||B|cos &theta; <br>
@@ -46,18 +49,25 @@ public class Calc
 	 * @param A			outer point
 	 * @param B			center point
 	 * @param C			outer point
-	 * @return the angle between the three points at vertex B
+	 * @return the angle between the three points at vertex B in degrees
 	 */
+	public static double findAngle(double[] A, double[] B, double[] C)
+	{
+		double[] F = new double[2];
+		double[] G = new double[2];
+		F[X] = A[X] - B[X];
+		F[Y] = A[Y] - B[Y];
+		G[X] = C[X] - B[X];
+		G[Y] = C[Y] - B[Y];
+		double radians = Math.acos(((F[X] * G[X]) + (F[Y] * G[Y])) / (mag(F) * mag(G)));
+		return Math.toDegrees(radians);
+	}
+	
 	public static double findAngle(Point A, Point B, Point C)
 	{
-		Point F = new Point();
-		Point G = new Point();
-		F.x = A.x - B.x;
-		F.y = A.y - B.y;
-		G.x = C.x - B.x;
-		G.y = C.y - B.y;
-		double radians = Math.acos(((F.x * G.x) + (F.y * G.y)) / (scalar(F) * scalar(G)));
-		return Math.toDegrees(radians);
+		return findAngle(new double[]{A.x, A.y},
+						 new double[]{B.x, B.y},
+						 new double[]{C.x, C.y});
 	}
 	
 	/** Converts the specified vector into a scalar.
@@ -428,9 +438,9 @@ public class Calc
 	 * and choosing the best value. Returns an array containing two elements:
 	 * 
 	 *  index 0 - the wavelength in nanometers
-	 *  index 1 - the minimized standard error of X fit
-	 *  index 2 - the minimized standard error of Y fit
-	 *  index 3 - the minimized standard error of Z fit
+	 *  index 1 - the minimized standard error of lambda in X fit
+	 *  index 2 - the minimized standard error of lambda in Y fit
+	 *  index 3 - the minimized standard error of lambda in Z fit
 	 * 
 	 * @param XYZ
 	 * @return
@@ -474,10 +484,59 @@ public class Calc
 			double error = cie31_cmf[nmToIndex(bestLambda)][j] - XYZ[j];
 			rmse[j] = error / slopes[j];
 			if (slopes[j] == 0)
-				rmse[j] = Double.MAX_VALUE;
+				rmse[j] = Double.POSITIVE_INFINITY;
 		}
 		
 		double[] result = {bestLambda, rmse[0], rmse[1], rmse[2]};
+		
+		return result;
+	}
+	
+
+	
+	/** The idea is to saturate the given XYZ color until it reaches the spectral
+	 * locus. i.e., determine the dominant wavelength by extrapolating outwards
+	 * from the white point in xyY color space.
+	 * 
+	 * index 0 - the wavelength in nanometers
+	 * index 1 - the minimized SSE of fit
+	 * 
+	 * @param XYZ
+	 * @return
+	 */
+	public static double[] getPrimaryWavelengthFitxy(double[] XYZ)
+	{			
+		double[] xyY = XYZtoxyY(XYZ);
+		double[] xy = {xyY[0], xyY[1]};
+		int bestLambda = -1;
+		
+		double min_sqerror = Double.POSITIVE_INFINITY;
+		
+		// Iterate through CMF xy table and find best match
+		
+		for (int i = 0; i < cmf_xy.length; i++)
+		{
+			// Compute the squared error at this wavelength
+			
+			double sqerror = 0;			
+			
+			for (int j = 0; j < 2; j++)
+			{
+				double error = cmf_xy[i][j] - xy[j];
+				sqerror += error * error;
+			}
+			
+			// If it is smaller than the error so far, then
+			// store this value.
+			
+			if (sqerror < min_sqerror)
+			{
+				min_sqerror = sqerror;
+				bestLambda = indexToNM(i);
+			}
+		}
+		
+		double[] result = {bestLambda, min_sqerror};
 		
 		return result;
 	}
@@ -535,22 +594,23 @@ public class Calc
 	 * from the white point in xyY color space.
 	 * 
 	 * index 0 - the wavelength in nanometers
-	 * index 1 - the minimized SSE of fit
+	 * index 1 - the minimized standard error of lambda in theta fit
 	 * 
 	 * @param XYZ
 	 * @return
 	 */
-	public static double[] getPrimaryWavelengthFitxy(double[] XYZ)
+	public static double[] getPrimaryWavelengthSatExtrap(double[] XYZ)
 	{			
 		double[] xyY = XYZtoxyY(XYZ);
-		double[] xy = {xyY[0], xyY[1]};
+		double[] direction = {xyY[0] - 1/3.0, xyY[1] - 1/3.0};
+		direction = unit(direction);
 		int bestLambda = -1;
 		
 		double min_sqerror = Double.POSITIVE_INFINITY;
 		
-		// Iterate through CMF xy table and find best match
+		// Iterate through CMF white-to-locus table and find best match
 		
-		for (int i = 0; i < cmf_xy.length; i++)
+		for (int i = 0; i < cmf_whiteToLocus.length; i++)
 		{
 			// Compute the squared error at this wavelength
 			
@@ -558,7 +618,7 @@ public class Calc
 			
 			for (int j = 0; j < 2; j++)
 			{
-				double error = cmf_xy[i][j] - xy[j];
+				double error = cmf_whiteToLocus[i][j] - direction[j];
 				sqerror += error * error;
 			}
 			
@@ -572,14 +632,26 @@ public class Calc
 			}
 		}
 		
-		double[] result = {bestLambda, min_sqerror};
+		// Find RMSE of wavelength		
+				
+		double dlambda = Double.POSITIVE_INFINITY;
+		if (bestLambda != -1)
+		{
+			// Find angle between our colour and spectral colour
+			
+			double[] white = {1/3.0, 1/3.0};
+			double degrees = findAngle(cmf_whiteToLocus[nmToIndex(bestLambda)], white, direction);
+			dlambda = degrees * cmf_dlambda_dtheta(bestLambda);
+		}
+		
+		double[] result = {bestLambda, dlambda};
 		
 		return result;
 	}
 	
 	/** Returns the derivative of the cie cmf
 	 * at the specified wavelength. A 1 nm wide
-	 * approximation,
+	 * approximation.
 	 * 
 	 * @param nm
 	 * @return
@@ -599,7 +671,7 @@ public class Calc
 			else if (index == nmToIndex(830))
 				slopes = scale(copy(cie31_cmf[index - 1]), -1);
 			
-			// Otherwise, the slope is just the next value subtract the previous value
+			// Otherwise, the numerator of the slope is just the next value subtract the previous value
 			else
 				slopes = add(cie31_cmf[index + 1], scale(cie31_cmf[index - 1], -1));
 		}
@@ -609,6 +681,44 @@ public class Calc
 		slopes = scale(slopes, 0.5);
 		
 		return slopes;
+	}
+	
+	/** Returns the derivative of the cie cmf
+	 * at the specified wavelength wrt theta
+	 * with the white point (1/3,1/3) as an origin.
+	 * This is at the locus about the gamut of
+	 * vision in xy color space. This is a 1 nm 
+	 * wide approximation.
+	 * 
+	 * i.e. we are finding dlambda/dtheta
+	 * 
+	 * @param nm
+	 * @return
+	 */
+	public static double cmf_dlambda_dtheta(double nm)
+	{
+		double slope = 0;
+		
+		if (nm <= 360)
+			nm = 361;
+		else if (nm >= 830)
+			nm = 829;
+		
+		int index = nmToIndex(nm);
+		
+		// The numerator is just the next value subtract the previous value... i.e. 2 nm
+		
+		slope = 2;
+		
+		// Divide by dtheta:
+		
+		double[] A = cmf_xy[index + 1];
+		double[] B = new double[] {1/3.0, 1/3.0};
+		double[] C = cmf_xy[index - 1];
+		
+		slope /= findAngle(A, B, C);
+		
+		return slope;
 	}
 		
 	public static int indexToNM(int index)
@@ -1109,9 +1219,17 @@ public class Calc
 	 */
 	public static double[][] cmf_xy;
 	
+	/** The normalized direction vector pointing from the
+	 * white point (1/3,1/3) to the spectral chromaticity
+	 * at that particular wavelength, located on the
+	 * tongue-shaped spectral locus a.k.a. envelope. 
+	 */
+	public static double[][] cmf_whiteToLocus;
+	
 	static
 	{
-		cmf_rgb_lin = new double[cie31_cmf.length][2];
+		cmf_whiteToLocus = new double[cie31_cmf.length][2];
+		cmf_rgb_lin = new double[cie31_cmf.length][3];		
 		cmf_xy = new double[cie31_cmf.length][2];
 		
 		for (int i = 0; i < cie31_cmf.length; i++)
@@ -1135,6 +1253,12 @@ public class Calc
 					rgb[j] = 1;
 			}
 			cmf_rgb_lin[i] = sRGBreverseGamma(rgb);
+			
+			// Record white to locus direction vector
+			
+			cmf_whiteToLocus[i][0] = xyY[0] - 1/3.0;
+			cmf_whiteToLocus[i][1] = xyY[1] - 1/3.0;			
+			cmf_whiteToLocus[i] = unit(cmf_whiteToLocus[i]);
 		}
 	}
 }

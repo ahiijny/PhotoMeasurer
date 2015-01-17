@@ -119,7 +119,7 @@ public class GUI extends JFrame
 	
 	// Color Measurement Panel Fields
 	
-	public JTextField[] fieldXYZ, fieldLambdaFitXYZ, fieldLambdaTrunc, fieldLambdaFitxy; 
+	public JTextField[] fieldXYZ, fieldLambdaFitXYZ, fieldLambdaTrunc, fieldLambdaFitxy, fieldLambdaSatExtrap; 
 	public JTextField fieldColor, fieldRGB, fieldTableIndex, fieldTableSize;
 	
 	// Listeners
@@ -166,7 +166,7 @@ public class GUI extends JFrame
 	
 	public int tableIndex = 0;
 	public int tableSize = 128;
-	public int tableCols = 9;
+	public int tableCols = 10;
 		
 	public boolean movingMode = false;
 	public boolean isLogging = true;
@@ -247,6 +247,11 @@ public class GUI extends JFrame
 		
 		button = new JMenuItem ("Jump to Origin");
 		button.setMnemonic('j');
+		button.addActionListener(menuListener);
+		view.add(button);
+		
+		button = new JMenuItem ("Reset Zoom");
+		button.setMnemonic('z');
 		button.addActionListener(menuListener);
 		view.add(button);
 
@@ -518,7 +523,7 @@ public class GUI extends JFrame
 		
 		JPanel specs = new JPanel(new GridBagLayout());
 		GridBagConstraints c = new GridBagConstraints();
-		c.insets = new Insets(2,4,2,4);
+		c.insets = new Insets(1,2,1,2);
 		c.gridx = c.gridy = 0;
 		c.fill = GridBagConstraints.HORIZONTAL;
 		int cols = 14;
@@ -676,7 +681,7 @@ public class GUI extends JFrame
 		JPanel color = new JPanel(new GridBagLayout());
 		GridBagConstraints c = new GridBagConstraints();
 		c.gridx = c.gridy = 0;
-		c.insets = new Insets(2,4,2,4);
+		c.insets = new Insets(1,2,1,2);
 		c.fill = GridBagConstraints.HORIZONTAL;
 		int cols = 11;
 				
@@ -791,6 +796,30 @@ public class GUI extends JFrame
 			gridBagAdd(color, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldLambdaTrunc[i]);
 		}
 		
+		gridBagSeparator(color, c, 0, ++c.gridy, 2);
+		
+		// Saturation Extrapolation
+		
+		label = new JLabel("Wavelength - Sat Extrapolation Method"); 
+		gridBagAdd(color, c, 0, ++c.gridy, 2, GridBagConstraints.FIRST_LINE_START, label);
+		
+		fieldLambdaSatExtrap = new JTextField[2];
+		labels = new String[] {"Best \u03BB(nm)", "SE of fit (nm)"};
+		
+		for (int i = 0; i < 2; i++)
+		{
+			label = new JLabel(labels[i]);
+			label.setFont(fontCourier);	
+			
+			fieldLambdaSatExtrap[i] = new JTextField(cols);
+			fieldLambdaSatExtrap[i].setFont(fontCourier);
+			fieldLambdaSatExtrap[i].setEditable(false);
+			fieldLambdaSatExtrap[i].setBackground(Color.white);
+			
+			gridBagAdd(color, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
+			gridBagAdd(color, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldLambdaSatExtrap[i]);
+		}
+		
 		return color;
 	}
 	
@@ -875,7 +904,8 @@ public class GUI extends JFrame
 			double[] resultsXYZ = Calc.getPrimaryWavelengthFitXYZ(XYZ);
 			double[] resultsxy = Calc.getPrimaryWavelengthFitxy(XYZ);
 			double[] resultsRGB = Calc.getPrimaryWavelengthInverseTrunc(rgb);
-			displayColor(color, rgb, XYZ, resultsXYZ, resultsxy, resultsRGB);
+			double[] resultsSatExtrap = Calc.getPrimaryWavelengthSatExtrap(XYZ);
+			displayColor(color, rgb, XYZ, resultsXYZ, resultsxy, resultsRGB, resultsSatExtrap);
 			
 			tableSet("" + rgb[0], 0);
 			tableSet("" + rgb[1], 1);
@@ -886,6 +916,7 @@ public class GUI extends JFrame
 			tableSet("" + (int)resultsXYZ[0], 6);
 			tableSet("" + (int)resultsxy[0], 7);
 			tableSet("" + (int)resultsRGB[0], 8);
+			tableSet("" + (int)resultsSatExtrap[0], 9);
 			tableIncrement();
 		}		
 	}
@@ -899,7 +930,8 @@ public class GUI extends JFrame
 	{
 		try
 		{
-			setZoom(new Point(0, 0), Double.parseDouble(value) / 100);
+			Dimension size = ip.getSize();
+			setZoom(new Point(size.width/2, size.height/2), Double.parseDouble(value) / 100);
 		}
 		catch (Exception e)
 		{
@@ -1228,7 +1260,7 @@ public class GUI extends JFrame
 		fieldsRuler[RU_SCALE].setText(Calc.precise12.format(ip.pixelsPerMM));
 	}
 	
-	public void displayColor(Color color, int[] rgb, double[] XYZ, double[] resultsXYZ, double[] resultsxy, double[] resultsRGB)
+	public void displayColor(Color color, int[] rgb, double[] XYZ, double[] resultsXYZ, double[] resultsxy, double[] resultsRGB, double[] resultsSatExtrap)
 	{
 		// Set RGB color		
 		
@@ -1262,6 +1294,11 @@ public class GUI extends JFrame
     	    	
     	fieldLambdaTrunc[0].setText(Calc.whole.format(resultsRGB[0]));
     	fieldLambdaTrunc[1].setText(Calc.precise8.format(resultsRGB[1]));
+    	
+    	// Get wavelength from saturation extrapolation method
+    	
+    	fieldLambdaSatExtrap[0].setText(Calc.whole.format(resultsSatExtrap[0]));
+    	fieldLambdaSatExtrap[1].setText(Calc.precise8.format(resultsSatExtrap[1]));
 	}
 	
 	public void refresh()
@@ -1500,6 +1537,10 @@ public class GUI extends JFrame
 				{
 					ip.setOffset(new Point(0, 0));
 					repaint();
+				}
+				else if (name.equals("Reset Zoom"))
+				{
+					setZoom("100");
 				}
 				else if (name.equals("Formatting"))
 				{
