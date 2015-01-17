@@ -60,7 +60,7 @@ public class GUI extends JFrame
 			e.printStackTrace();
 		}
 		
-		new GUI();
+		new GUI("Photo Measurer", 1280, 720);
 	}		
 	
 	// Mode labels
@@ -173,15 +173,16 @@ public class GUI extends JFrame
 	public boolean isLogging = true;
 	public double zoomStep = 0.1;	// The increase in zoom (1 = 100%) per scroll increment
 	
-	
+	public Logger logger;
 
-	public GUI()
+	public GUI(String title, int width, int height)
 	{
-		super("Photo Measurer");
+		super(title);
 		
 		setJMenuBar(createMenuBar());
 		setContentPane(createContent());
-		revalidate();
+		logger = new Logger(table);
+		refresh();
 		
 		// Set up keyboard stuff
 		
@@ -191,7 +192,7 @@ public class GUI extends JFrame
 		
 		// Open the window
 		
-		setSize(720, 480);
+		setSize(width, height);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setExtendedState(MAXIMIZED_BOTH);
 		setVisible(true);
@@ -220,6 +221,13 @@ public class GUI extends JFrame
 		button.setMnemonic('o');
 		button.setAccelerator(KeyStroke.getKeyStroke (
 				KeyEvent.VK_O, menuKeyMask));
+		button.addActionListener (menuListener);
+		file.add(button);
+		
+		button = new JMenuItem ("Export to CSV");
+		button.setMnemonic('x');
+		button.setAccelerator(KeyStroke.getKeyStroke (
+				KeyEvent.VK_X, menuKeyMask));
 		button.addActionListener (menuListener);
 		file.add(button);
 		
@@ -783,7 +791,7 @@ public class GUI extends JFrame
 			gridBagAdd(color, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldLambdaExtrap[i]);
 		}
 		
-		displayColor(Color.white);
+		displayColor(Color.gray);
 		
 		return color;
 	}
@@ -795,6 +803,22 @@ public class GUI extends JFrame
 		table.setEditingRow(0);
 		tableIndex = 0;
 		refreshLeftPanel();
+	}
+	
+	public void clearRow(int row)
+	{							
+		if (row != -1)
+		{
+			TableModel tm = table.getModel();
+			for (int i = 0; i < tableCols; i++)
+				tm.setValueAt("", row, i);
+		}
+	}
+	
+	public void clearImFields()
+	{
+		for (int i = 0; i < fieldsImSpecs.length; i++)
+			fieldsImSpecs[i].setText("");
 	}
 	
 	protected void gridBagAdd(JPanel panel, GridBagConstraints c, int x, int y, int width, int align, JComponent comp)
@@ -954,23 +978,33 @@ public class GUI extends JFrame
 	 */
 	public void loadFile()
 	{	
-		manager.removeKeyEventDispatcher(keyDispatcher);
+		manager.removeKeyEventDispatcher(keyDispatcher); // remove keyboard bindings temporally
+		
+		// File dialog prompt
+		
 		FileDialog fd = new FileDialog(this, "Open");
 		fd.setFile("*.BMP;*.GIF;*.PNG;*.JPG;*.JPEG");
 		fd.setVisible(true);		
 		String path = fd.getFile();	
+		
+		// If path selected, open that image.
+		
 		if (path != null)
 		{
 			directory = new File(fd.getDirectory());
 			File load = new File(directory.getAbsoluteFile() + File.separator + path);
 			directory = load;
+			
+			// Open image
+			
 			if (load.canRead())
 			{
+				clearImFields(); // Reset im fields
 				ip.loadImage(load);
 				refresh();
 			}
 		}		
-		manager.addKeyEventDispatcher(keyDispatcher);
+		manager.addKeyEventDispatcher(keyDispatcher); // return keyboard bindings
 				
 		/*
 		// Set up JFileChooser
@@ -993,6 +1027,47 @@ public class GUI extends JFrame
 			if (load.canRead())			
 				ip.loadImage(load);			
 		}	*/	
+	}
+	
+	/** Exports the data in the table to csv. 
+	 */
+	public void export()
+	{
+		manager.removeKeyEventDispatcher(keyDispatcher); // remove keyboard bindings temporally
+		
+		// File dialog prompt
+		
+		FileDialog fd = new FileDialog(this, "Save", FileDialog.SAVE);
+		fd.setFile(logger.path.getAbsolutePath());
+		fd.setVisible(true);		
+		String path = fd.getFile();
+		
+		// If path selected, save to that path.
+		
+		if (path != null)
+		{		
+			directory = new File(fd.getDirectory());
+			File save = new File(directory.getAbsoluteFile() + File.separator + path);
+			logger.setPath(save);
+			
+			// Write to file
+			
+			try
+			{
+				logger.log();
+				logger.write();
+				//String message = "Successfully exported to " + path + ".";
+				//JOptionPane.showMessageDialog(GUI.this, message, "Export Data", JOptionPane.INFORMATION_MESSAGE);			
+			}
+			catch (Exception ex)
+			{
+				String message = ex.getMessage();
+				JOptionPane.showMessageDialog(GUI.this, message, "Export Data", JOptionPane.WARNING_MESSAGE);
+				ex.printStackTrace();
+			}						
+		}
+		
+		manager.addKeyEventDispatcher(keyDispatcher); // return keyboard bindings
 	}
 	
 	/** @param move true = click & drag to navigate; false = no navigation
@@ -1271,7 +1346,7 @@ public class GUI extends JFrame
 			}
 		}
 	}
-	
+			
 	public void close ()
 	{
 		dispose();	
@@ -1350,7 +1425,9 @@ public class GUI extends JFrame
 			if (e.getID() == KeyEvent.KEY_PRESSED) 
 			{
 				if (e.getKeyCode() == KeyEvent.VK_SHIFT)				
-					setMovingMode(true);		
+					setMovingMode(true);	
+				else if (e.getKeyCode() == KeyEvent.VK_DELETE)				
+					clearRow(table.getSelectedRow());				
 			} 
 			else if (e.getID() == KeyEvent.KEY_RELEASED) 
 			{
@@ -1379,6 +1456,10 @@ public class GUI extends JFrame
 				{
 					loadFile();
 				}
+				else if (name.equals("Export to CSV"))
+				{
+					export();
+				}
 				else if (name.equals("Jump to Origin"))
 				{
 					ip.setOffset(new Point(0, 0));
@@ -1397,6 +1478,7 @@ public class GUI extends JFrame
 					String str = "Shortcut keys:\n";
 					str += "Shift + drag: move image\n";
 					str += "Scroll: zoom\n";
+					str += "Delete: clear selected row\n";
 							
 					JOptionPane.showMessageDialog(GUI.this, str, "Controls", JOptionPane.PLAIN_MESSAGE);			
 				}
