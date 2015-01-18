@@ -1201,8 +1201,7 @@ public class GUI extends JFrame
 				ip.vertices[0] = new Point(x1, y1);
 				ip.vertices[1] = new Point(x2, y2);
 				
-				plotter.p1.setLocation(x1, y1);
-				plotter.p2.setLocation(x2, y2);
+				plotter.setEndPoints(ip.vertices[0], ip.vertices[1]);
 				
 				ip.vertexIndex = 2;
 			}
@@ -1677,10 +1676,12 @@ public class GUI extends JFrame
 	
 	public void displayProfiler(Point p1, Point p2)
 	{
+		plotter.editLock = true;
 		spinnersProfiler[PF_X1].setValue(p1.x);
 		spinnersProfiler[PF_Y1].setValue(p1.y);
 		spinnersProfiler[PF_X2].setValue(p2.x);
 		spinnersProfiler[PF_Y2].setValue(p2.y);
+		plotter.editLock = false;
 	}
 	
 	public void refresh()
@@ -1723,17 +1724,13 @@ public class GUI extends JFrame
 		else if (mode == RULER)
 			fieldsRuler[RU_SCALE].setText(Calc.precise12.format(ip.pixelsPerMM));
 		else if (mode == PROFILER)
-		{
-			spinnersProfiler[PF_X1].setValue(plotter.p1.x);
-			spinnersProfiler[PF_Y1].setValue(plotter.p1.y);
-			spinnersProfiler[PF_X2].setValue(plotter.p2.x);
-			spinnersProfiler[PF_Y2].setValue(plotter.p2.y);
-			
+		{						
+			displayProfiler(plotter.p1, plotter.p2);
 			if (ip.vertexIndex == 0)
 			{
 				ip.vertexIndex = 2;
 				ip.vertices[0] = plotter.p1;
-				ip.vertices[1] = plotter.p2;
+				ip.vertices[1] = plotter.p2;								
 			}
 		}
 	}
@@ -1857,48 +1854,47 @@ public class GUI extends JFrame
 			if (parent instanceof JSpinner)
 			{
 				JSpinner spinner = (JSpinner)parent;
-				if (plotter.slopeLock)
+				
+				if (plotter.editLock == false)
 				{
-					// Turn off slope lock as we work
+					plotter.editLock = true;
 					
-					plotter.slopeLock = false;
-					
-					// Find previous slope
-					
-					int deltax = plotter.getDeltaX();
-					int deltay = plotter.getDeltaY();
-					
-					// Maintain delta x if one field is changed
-					
-					if (spinner.equals(spinnersProfiler[PF_X1]))
-					{
-						int x1 = ((Integer)spinnersProfiler[PF_X1].getValue()).intValue();
-						spinnersProfiler[PF_X2].setValue(x1 + deltax);
+					if (plotter.slopeLock)
+					{						
+						// Find previous slope
+						
+						int deltax = plotter.getDeltaX();
+						int deltay = plotter.getDeltaY();
+						
+						// Maintain delta x if one field is changed
+						
+						if (spinner.equals(spinnersProfiler[PF_X1]))
+						{
+							int x1 = ((Integer)spinnersProfiler[PF_X1].getValue()).intValue();
+							spinnersProfiler[PF_X2].setValue(x1 + deltax);
+						}
+						else if (spinner.equals(spinnersProfiler[PF_Y1]))
+						{
+							int y1 = ((Integer)spinnersProfiler[PF_Y1].getValue()).intValue();
+							spinnersProfiler[PF_Y2].setValue(y1 + deltay);
+						}
+						else if (spinner.equals(spinnersProfiler[PF_X2]))
+						{
+							int x2 = ((Integer)spinnersProfiler[PF_X2].getValue()).intValue();
+							spinnersProfiler[PF_X1].setValue(x2 - deltax);
+						}
+						else if (spinner.equals(spinnersProfiler[PF_Y2]))
+						{
+							int y2 = ((Integer)spinnersProfiler[PF_Y2].getValue()).intValue();
+							spinnersProfiler[PF_Y1].setValue(y2 - deltay);
+						}		
 					}
-					else if (spinner.equals(spinnersProfiler[PF_Y1]))
-					{
-						int y1 = ((Integer)spinnersProfiler[PF_Y1].getValue()).intValue();
-						spinnersProfiler[PF_Y2].setValue(y1 + deltay);
-					}
-					else if (spinner.equals(spinnersProfiler[PF_X2]))
-					{
-						int x2 = ((Integer)spinnersProfiler[PF_X2].getValue()).intValue();
-						spinnersProfiler[PF_X1].setValue(x2 - deltax);
-					}
-					else if (spinner.equals(spinnersProfiler[PF_Y2]))
-					{
-						int y2 = ((Integer)spinnersProfiler[PF_Y2].getValue()).intValue();
-						spinnersProfiler[PF_Y1].setValue(y2 - deltay);
-					}
-					
-					// Resume slope lock
-					
-					plotter.slopeLock = true;
+									
+					// Update values	
+												
+					inputProfileLine();
+					plotter.editLock = false;
 				}
-				
-				// Update values
-				
-				inputProfileLine();				
 			}
 		}		
 	}

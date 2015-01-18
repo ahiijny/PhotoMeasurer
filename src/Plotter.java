@@ -28,11 +28,12 @@ public class Plotter extends JPanel
 	
 	public boolean extrapolate = false;
 	public boolean slopeLock = false;
+	public boolean editLock = false;
 	
 	public Plotter(GUI parent) 
 	{
 		this.parent = parent;
-		size = new Dimension (0, 0);
+		size = new Dimension(0, 0);
 	}
 	
 	public void paintComponent(Graphics g)
