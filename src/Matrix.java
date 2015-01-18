@@ -113,4 +113,92 @@ public class Matrix
 		
 		return I;
 	}
+	
+	 /** ^ finds the x and y coordinates of the solution of the
+      * two lines that are inputted, given the coefficients
+      * of the equations of the three planes in the format:
+      *
+      *  (a1 * x) + (b1 * y) = c1
+      *  (a2 * x) + (b2 * y) = c2
+      *  (a3 * x) + (b3 * y) = c3
+    */
+	public static double[] solveLines (double a1, double b1, double c1, 
+			 double a2, double b2, double c2)	       
+    {
+        double[][] tempMatrix = new double [2][2];        
+        double denominator, numeratorX, numeratorY;
+
+        // Denominator
+
+        tempMatrix = new double[][]
+        {
+            {a1, b1},
+            {a2, b2}
+        };
+        
+        denominator = det(tempMatrix);
+
+        // numeratorX
+
+        tempMatrix = new double[][]
+        {
+            {c1, b1},
+            {c2, b2}
+        };
+        numeratorX = det(tempMatrix);
+
+        // numeratorY
+
+        tempMatrix = new double[][]
+        {
+            {a1, c1},
+            {a2, c2}
+        };
+        numeratorY = det(tempMatrix);
+        
+        System.out.println(denominator + "  " + numeratorX + "  " + numeratorY);
+
+        // Solving for the point
+
+        double[] solution = new double [2];        
+        solution[0] = numeratorX / denominator;
+        solution[1] = numeratorY / denominator;
+
+        return solution;
+
+    } // solveLines method
+	
+	/** Only R2 for now 
+	 */
+	public static double[] vectorToStandardForm(double[] r, double[] m)
+	{
+		double a = m[1];
+		double b = -m[0];
+		double c = r[0]*m[1] - r[1]*m[0];
+		
+		return new double[] {a, b, c};
+	}
+
+	/** Only 2x2 for now.
+	 */
+	public static double det (double[][] matrix)
+    {
+        double determinant;
+
+        /* THE DETERMINANT OF A SQUARE MATRIX
+        (http://en.wikipedia.org/wiki/Determinant)
+
+        | a  b |
+        | c  d |
+
+        = ad - bc;  */
+
+        if (matrix.length != 2 || matrix[0].length != 2)
+            determinant = -99999;
+        else
+            determinant = matrix[0][0]*matrix[1][1] - matrix[0][1]*matrix[1][0];
+
+        return determinant;
+
+    } // det method
 }

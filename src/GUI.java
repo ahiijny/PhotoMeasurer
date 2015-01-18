@@ -35,6 +35,7 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
 import javax.swing.JSpinner;
@@ -47,6 +48,8 @@ import javax.swing.SpinnerModel;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableModel;
@@ -115,6 +118,8 @@ public class GUI extends JFrame
 	public static final int PF_Y1 = 1;
 	public static final int PF_X2 = 2;
 	public static final int PF_Y2 = 3;
+	public static final int PF_EXTRAPOLATE = 0;
+	public static final int PF_SLOPE_LOCK = 1;
 	
 	// Measurement Panel Fields
 		
@@ -126,9 +131,10 @@ public class GUI extends JFrame
 	public static final String[] labelsAngle = {"Degrees"};
 	public static final String[] labelsPrimer = {"Pixels/length"};
 	public static final String[] labelsRuler = {"Length", "Pixels/length"};
+	public static final String[] labelsProfiler = {"Extrapolate", "Slope Lock"};
 	public static final String[] labelsProfilerSpinner = {"x1", "y1", "x2", "y2"};
 	
-	public static final String[] profilerParams = {"sRed", "sGreen", "sBlue", "linRed", "linGreen", "linBlue", "X", "Y", "Z"};
+	public static final String[] profilerParams = {"sRed", "sGreen", "sBlue", "linRed", "linGreen", "linBlue", "X", "Y", "Z", "\u03BB (XYZ fit)", "\u03BB (xyY fit)", "\u03BB (RGB fit)", "\u03BB (sat extrap fit)"};
 		
 	public JTextField[] fieldsImSpecs = new JTextField[labelsSpecs.length];
 	public JTextField[] fieldsAngle = new JTextField[labelsAngle.length];
@@ -136,7 +142,8 @@ public class GUI extends JFrame
 	public JTextField[] fieldsRuler = new JTextField[labelsRuler.length];
 	public JSpinner[] spinnersProfiler = new JSpinner[4];
 	
-	public JButton[] profilerButtons = new JButton[profilerParams.length];
+	public JRadioButton[] profilerOptionButtons = new JRadioButton[labelsProfiler.length];
+	public JToggleButton[] profilerButtons = new JToggleButton[profilerParams.length];
 
 	
 	// Color Measurement Panel Fields
@@ -941,6 +948,7 @@ public class GUI extends JFrame
 		{
 			SpinnerModel model = new SpinnerNumberModel(0, Integer.MIN_VALUE, Integer.MAX_VALUE, 1);
 			spinnersProfiler[i] = new JSpinner(model);
+			spinnersProfiler[i].addChangeListener(new MyChangeListener());
 			JFormattedTextField ftf = ((JSpinner.DefaultEditor)spinnersProfiler[i].getEditor()).getTextField();
 			ftf.setColumns(cols);
 		}
@@ -949,28 +957,48 @@ public class GUI extends JFrame
 			labels[i] = new JLabel(labelsProfilerSpinner[i]);
 		
 		for (int i = 0; i < profilerParams.length; i++)
-			profilerButtons[i] = new JButton(profilerParams[i]);	
+		{
+			profilerButtons[i] = new JToggleButton(profilerParams[i]);
+			profilerButtons[i].addActionListener(myActionListener);
+		}
 		
 		// Add line specification fields
 		
 		c.weightx = 0;
 		gridBagAdd(profiler, c, 0, 0, 1, GridBagConstraints.FIRST_LINE_START, labels[PF_X1]);
-		gridBagAdd(profiler, c, 2, 0, 1, GridBagConstraints.FIRST_LINE_START, labels[PF_Y1]);
-		gridBagAdd(profiler, c, 0, 1, 1, GridBagConstraints.FIRST_LINE_START, labels[PF_X2]);
+		gridBagAdd(profiler, c, 2, 0, 1, GridBagConstraints.FIRST_LINE_START, labels[PF_X2]);
+		gridBagAdd(profiler, c, 0, 1, 1, GridBagConstraints.FIRST_LINE_START, labels[PF_Y1]);
 		gridBagAdd(profiler, c, 2, 1, 1, GridBagConstraints.FIRST_LINE_START, labels[PF_Y2]);
 		
 		c.weightx = 0;
 		gridBagAdd(profiler, c, 1, 0, 1, GridBagConstraints.FIRST_LINE_START, spinnersProfiler[PF_X1]);
-		gridBagAdd(profiler, c, 3, 0, 1, GridBagConstraints.FIRST_LINE_START, spinnersProfiler[PF_Y1]);
-		gridBagAdd(profiler, c, 1, 1, 1, GridBagConstraints.FIRST_LINE_START, spinnersProfiler[PF_X2]);
+		gridBagAdd(profiler, c, 3, 0, 1, GridBagConstraints.FIRST_LINE_START, spinnersProfiler[PF_X2]);
+		gridBagAdd(profiler, c, 1, 1, 1, GridBagConstraints.FIRST_LINE_START, spinnersProfiler[PF_Y1]);
 		gridBagAdd(profiler, c, 3, 1, 1, GridBagConstraints.FIRST_LINE_START, spinnersProfiler[PF_Y2]);
-				
+				/*
 		// Add set button
 		
 		buttonProfile = new JButton("Profile");
+		buttonProfile.addActionListener(myActionListener);
 		c.fill = GridBagConstraints.NONE;
 		gridBagAdd(profiler, c, 0, ++c.gridy, 4, GridBagConstraints.CENTER, buttonProfile);
-		c.fill = GridBagConstraints.HORIZONTAL;
+		c.fill = GridBagConstraints.HORIZONTAL;*/
+		
+		// Add additional options
+		
+		c.insets = new Insets(0,4,0,4);
+		
+		for (int i = 0; i < labelsProfiler.length; i++)
+		{
+			profilerOptionButtons[i] = new JRadioButton(labelsProfiler[i]);
+			profilerOptionButtons[i].addActionListener(myActionListener);
+			gridBagAdd(profiler, c, 0, ++c.gridy, 4, GridBagConstraints.CENTER, profilerOptionButtons[i]);
+		}
+		
+		// Add profiler params
+						
+		for (int i = 0; i < profilerButtons.length; i++)
+			gridBagAdd(profiler, c, 0, ++c.gridy, 4, GridBagConstraints.CENTER, profilerButtons[i]);
 		
 		return profiler;
 	}
@@ -1082,7 +1110,7 @@ public class GUI extends JFrame
 			{
 				Point temp = new Point(ip.vertices[0]);
 				ip.vertices[0].setLocation(ip.vertices[1]);
-				ip.vertices[1].setLocation(ip.vertices[0]);
+				ip.vertices[1].setLocation(temp);
 			}
 			plotter.setEndPoints(ip.vertices[0], ip.vertices[1]);
 			displayProfiler(ip.vertices[0], ip.vertices[1]);
@@ -1163,11 +1191,27 @@ public class GUI extends JFrame
 	{
 		try
 		{
+			if (mode == PROFILER)
+			{
+				int x1 = ((Integer)spinnersProfiler[PF_X1].getValue()).intValue();
+				int y1 = ((Integer)spinnersProfiler[PF_Y1].getValue()).intValue();
+				int x2 = ((Integer)spinnersProfiler[PF_X2].getValue()).intValue();
+				int y2 = ((Integer)spinnersProfiler[PF_Y2].getValue()).intValue();
+								
+				ip.vertices[0] = new Point(x1, y1);
+				ip.vertices[1] = new Point(x2, y2);
+				
+				plotter.p1.setLocation(x1, y1);
+				plotter.p2.setLocation(x2, y2);
+				
+				ip.vertexIndex = 2;
+			}
 		}
 		catch(Exception e)
-		{			
+		{	
+			e.printStackTrace();
 		}
-		refreshRightPanel();
+		refresh();
 	}
 	
 	public void setTableRowCount(int rows)
@@ -1684,6 +1728,13 @@ public class GUI extends JFrame
 			spinnersProfiler[PF_Y1].setValue(plotter.p1.y);
 			spinnersProfiler[PF_X2].setValue(plotter.p2.x);
 			spinnersProfiler[PF_Y2].setValue(plotter.p2.y);
+			
+			if (ip.vertexIndex == 0)
+			{
+				ip.vertexIndex = 2;
+				ip.vertices[0] = plotter.p1;
+				ip.vertices[1] = plotter.p2;
+			}
 		}
 	}
 	
@@ -1770,12 +1821,20 @@ public class GUI extends JFrame
 					inputProfileLine();
 				}
 			}
+			else if (parent instanceof JRadioButton)
+			{
+				JRadioButton button = (JRadioButton)parent;
+				if (button.equals(profilerOptionButtons[PF_EXTRAPOLATE]))
+					plotter.extrapolate = button.isSelected();
+				else if (button.equals(profilerOptionButtons[PF_SLOPE_LOCK]))
+					plotter.slopeLock = button.isSelected();
+			}
 			else if (parent instanceof JToggleButton)
 			{
 				JToggleButton button = (JToggleButton)parent;
 				if (button.equals(buttonLog))
 					isLogging = buttonLog.isSelected();
-			}
+			}			
 			else if (parent instanceof JComboBox<?>)
 			{
 				JComboBox<?> cb = (JComboBox<?>)parent;
@@ -1786,6 +1845,62 @@ public class GUI extends JFrame
 					ip.setInterpolationMethod(cb.getSelectedIndex());					
 			}
 		}
+	}
+	
+	private class MyChangeListener implements ChangeListener
+	{
+		@Override
+		public void stateChanged(ChangeEvent e) 
+		{
+			Object parent = e.getSource ();
+
+			if (parent instanceof JSpinner)
+			{
+				JSpinner spinner = (JSpinner)parent;
+				if (plotter.slopeLock)
+				{
+					// Turn off slope lock as we work
+					
+					plotter.slopeLock = false;
+					
+					// Find previous slope
+					
+					int deltax = plotter.getDeltaX();
+					int deltay = plotter.getDeltaY();
+					
+					// Maintain delta x if one field is changed
+					
+					if (spinner.equals(spinnersProfiler[PF_X1]))
+					{
+						int x1 = ((Integer)spinnersProfiler[PF_X1].getValue()).intValue();
+						spinnersProfiler[PF_X2].setValue(x1 + deltax);
+					}
+					else if (spinner.equals(spinnersProfiler[PF_Y1]))
+					{
+						int y1 = ((Integer)spinnersProfiler[PF_Y1].getValue()).intValue();
+						spinnersProfiler[PF_Y2].setValue(y1 + deltay);
+					}
+					else if (spinner.equals(spinnersProfiler[PF_X2]))
+					{
+						int x2 = ((Integer)spinnersProfiler[PF_X2].getValue()).intValue();
+						spinnersProfiler[PF_X1].setValue(x2 - deltax);
+					}
+					else if (spinner.equals(spinnersProfiler[PF_Y2]))
+					{
+						int y2 = ((Integer)spinnersProfiler[PF_Y2].getValue()).intValue();
+						spinnersProfiler[PF_Y1].setValue(y2 - deltay);
+					}
+					
+					// Resume slope lock
+					
+					plotter.slopeLock = true;
+				}
+				
+				// Update values
+				
+				inputProfileLine();				
+			}
+		}		
 	}
 			
 	public void close ()

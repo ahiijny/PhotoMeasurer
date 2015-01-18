@@ -224,9 +224,7 @@ public class ImagePanel extends JPanel
 		at.preConcatenate(at2);
 		g2.transform(at);
 		if (img != null)
-		{
-			g2.drawImage(img, 0, 0, null);			
-		}	
+			g2.drawImage(img, 0, 0, null);
 		drawLines(g2);				
 	}
 }
