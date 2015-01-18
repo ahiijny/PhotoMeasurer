@@ -118,8 +118,22 @@ public class GUI extends JFrame
 	public static final int PF_Y1 = 1;
 	public static final int PF_X2 = 2;
 	public static final int PF_Y2 = 3;
+	
 	public static final int PF_EXTRAPOLATE = 0;
 	public static final int PF_SLOPE_LOCK = 1;
+	public static final int PF_SRED = 2;
+	public static final int PF_SGREEN = 3;
+	public static final int PF_SBLUE = 4;
+	public static final int PF_LINRED = 5;
+	public static final int PF_LINGREEN = 6;
+	public static final int PF_LINBLUE = 7;
+	public static final int PF_X = 8;
+	public static final int PF_Y = 9;
+	public static final int PF_Z = 10;
+	public static final int PF_LAM_XYZ = 11;
+	public static final int PF_LAM_xy = 12;
+	public static final int PF_LAM_RGB = 13;
+	public static final int PF_LAM_SAT_EXTRAP = 14;
 	
 	// Measurement Panel Fields
 		
@@ -134,7 +148,7 @@ public class GUI extends JFrame
 	public static final String[] labelsProfiler = {"Extrapolate", "Slope Lock"};
 	public static final String[] labelsProfilerSpinner = {"x1", "y1", "x2", "y2"};
 	
-	public static final String[] profilerParams = {"sRed", "sGreen", "sBlue", "linRed", "linGreen", "linBlue", "X", "Y", "Z", "\u03BB (XYZ fit)", "\u03BB (xyY fit)", "\u03BB (RGB fit)", "\u03BB (sat extrap fit)"};
+	public static final String[] profilerParams = {"", "", "sRed", "sGreen", "sBlue", "linRed", "linGreen", "linBlue", "X", "Y", "Z", "\u03BB (XYZ fit)", "\u03BB (xyY fit)", "\u03BB (RGB fit)", "\u03BB (sat extrap)"};
 		
 	public JTextField[] fieldsImSpecs = new JTextField[labelsSpecs.length];
 	public JTextField[] fieldsAngle = new JTextField[labelsAngle.length];
@@ -144,7 +158,10 @@ public class GUI extends JFrame
 	
 	public JRadioButton[] profilerOptionButtons = new JRadioButton[labelsProfiler.length];
 	public JToggleButton[] profilerButtons = new JToggleButton[profilerParams.length];
-
+	
+	// Profiler Panel Fields
+	
+	public JTextField fieldPixelsPerSample;
 	
 	// Color Measurement Panel Fields
 	
@@ -160,8 +177,8 @@ public class GUI extends JFrame
 				
 	// Content Panes
 
-	public JSplitPane content;
-	public JPanel paneCenter, paneLeft, paneRight, paneBottom, paneTop, paneSpecWrapper;
+	public JSplitPane content, paneCenter;
+	public JPanel paneLeft, paneRight, paneBottom, paneTop, paneSpecWrapper;
 	public JPanel[] panesMeasurement = new JPanel[pointCount.length];
 	public ImagePanel ip;
 	
@@ -185,7 +202,7 @@ public class GUI extends JFrame
 		
 	// Buttons
 		
-	public JButton buttonTableIndex, buttonTableSize, buttonLengthScale, buttonProfile;
+	public JButton buttonTableIndex, buttonTableSize, buttonLengthScale, buttonSampleRate;
 	
 	// Other Stuff
 	
@@ -215,7 +232,6 @@ public class GUI extends JFrame
 		setJMenuBar(createMenuBar());
 		setContentPane(createContent());
 		logger = new Logger(table);
-		plotter = new Plotter(this);
 		refresh();
 		
 		// Set up keyboard stuff
@@ -291,6 +307,13 @@ public class GUI extends JFrame
 		button.addActionListener (menuListener);
 		data.add(button);
 		
+		data.add(new JSeparator());
+		
+		button = new JMenuItem ("Log pixels per length");
+		button.setMnemonic('p');
+		button.addActionListener (menuListener);
+		data.add(button);
+				
 		data.add(new JSeparator());
 		
 		button = new JMenuItem ("Log spectrum XYZ");
@@ -487,14 +510,23 @@ public class GUI extends JFrame
 
 	/** Initializes the image panel, which holds and draws the image.
 	 */
-	private JPanel createCenterPanel()
-	{
+	private JSplitPane createCenterPanel()
+	{		
 		ip = new ImagePanel(this);
 		ip.addMouseListener (new MyMouseListener());
 		ip.addMouseMotionListener (new MyMouseListener());
 		ip.addMouseWheelListener (new MyMouseListener());
 		
-		return ip;
+		plotter = new Plotter(this);
+		
+		JSplitPane splitter = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+		splitter.setBottomComponent(ip);
+		splitter.setTopComponent(plotter);
+		splitter.setDividerSize(4);
+		splitter.setDividerLocation(0);
+		splitter.addPropertyChangeListener(new MyPropertyChangeListener());
+		
+		return splitter;
 	}
 	
 	/** Initializes the data panel, which contains a table that stores measurements. 
@@ -960,6 +992,9 @@ public class GUI extends JFrame
 		{
 			profilerButtons[i] = new JToggleButton(profilerParams[i]);
 			profilerButtons[i].addActionListener(myActionListener);
+			profilerButtons[i].setMargin(new Insets(2,0,2,0));
+			profilerButtons[i].setBackground(Plotter.colors[i]);
+			profilerButtons[i].setForeground(Color.black);
 		}
 		
 		// Add line specification fields
@@ -975,18 +1010,12 @@ public class GUI extends JFrame
 		gridBagAdd(profiler, c, 3, 0, 1, GridBagConstraints.FIRST_LINE_START, spinnersProfiler[PF_X2]);
 		gridBagAdd(profiler, c, 1, 1, 1, GridBagConstraints.FIRST_LINE_START, spinnersProfiler[PF_Y1]);
 		gridBagAdd(profiler, c, 3, 1, 1, GridBagConstraints.FIRST_LINE_START, spinnersProfiler[PF_Y2]);
-				/*
-		// Add set button
 		
-		buttonProfile = new JButton("Profile");
-		buttonProfile.addActionListener(myActionListener);
-		c.fill = GridBagConstraints.NONE;
-		gridBagAdd(profiler, c, 0, ++c.gridy, 4, GridBagConstraints.CENTER, buttonProfile);
-		c.fill = GridBagConstraints.HORIZONTAL;*/
-		
+		gridBagSeparator(profiler, c, 0, ++c.gridy, 4);		
+				
 		// Add additional options
 		
-		c.insets = new Insets(0,4,0,4);
+		c.insets = new Insets(-2,4,-2,4);
 		
 		for (int i = 0; i < labelsProfiler.length; i++)
 		{
@@ -994,11 +1023,48 @@ public class GUI extends JFrame
 			profilerOptionButtons[i].addActionListener(myActionListener);
 			gridBagAdd(profiler, c, 0, ++c.gridy, 4, GridBagConstraints.CENTER, profilerOptionButtons[i]);
 		}
+		profilerOptionButtons[PF_EXTRAPOLATE].setSelected(true);
+		profilerOptionButtons[PF_SLOPE_LOCK].setSelected(false);
+		
+		c.insets = new Insets(2,4,2,4);
+		
+		gridBagSeparator(profiler, c, 0, ++c.gridy, 4);	
+		
+		// Add sample rate field
+		
+		JLabel label = new JLabel("Pixels per sample");
+		label.setFont(fontCourier);
+		fieldPixelsPerSample = new JTextField();
+		gridBagAdd(profiler, c, 0, ++c.gridy, 3, GridBagConstraints.FIRST_LINE_START, label);
+		gridBagAdd(profiler, c, 3, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldPixelsPerSample);
+						
+		// Add set button
+		
+		buttonSampleRate = new JButton("Set");
+		buttonSampleRate.addActionListener(myActionListener);
+		c.fill = GridBagConstraints.NONE;
+		gridBagAdd(profiler, c, 0, ++c.gridy, 4, GridBagConstraints.CENTER, buttonSampleRate);
+		c.fill = GridBagConstraints.HORIZONTAL;
+		
+		gridBagSeparator(profiler, c, 0, ++c.gridy, 4);
+		
+		c.insets = new Insets(0,4,0,4);
 		
 		// Add profiler params
+		
+		int starty = c.gridy;
+		int startx = 0;
+		int dy = 0;
 						
-		for (int i = 0; i < profilerButtons.length; i++)
-			gridBagAdd(profiler, c, 0, ++c.gridy, 4, GridBagConstraints.CENTER, profilerButtons[i]);
+		for (int i = 2; i < profilerButtons.length; i++)
+		{
+			gridBagAdd(profiler, c, startx, starty + ++dy, 2, GridBagConstraints.CENTER, profilerButtons[i]);
+			if (i == profilerButtons.length / 2)
+			{
+				startx = 2;
+				dy = 0;
+			}
+		}
 		
 		return profiler;
 	}
@@ -1112,8 +1178,10 @@ public class GUI extends JFrame
 				ip.vertices[0].setLocation(ip.vertices[1]);
 				ip.vertices[1].setLocation(temp);
 			}
-			plotter.setEndPoints(ip.vertices[0], ip.vertices[1]);
-			displayProfiler(ip.vertices[0], ip.vertices[1]);
+			plotter.setEndPoints(ip.vertices[0], ip.vertices[1]);			
+			displayProfiler(ip.vertices[0], ip.vertices[1]);	
+			plotter.sample();
+			plotter.repaint();
 		}
 	}
 	
@@ -1187,23 +1255,28 @@ public class GUI extends JFrame
 		refreshLeftPanel();		
 	}
 	
-	public void inputProfileLine()
+	public void inputProfiler()
 	{
 		try
 		{
 			if (mode == PROFILER)
-			{
+			{				
 				int x1 = ((Integer)spinnersProfiler[PF_X1].getValue()).intValue();
 				int y1 = ((Integer)spinnersProfiler[PF_Y1].getValue()).intValue();
 				int x2 = ((Integer)spinnersProfiler[PF_X2].getValue()).intValue();
 				int y2 = ((Integer)spinnersProfiler[PF_Y2].getValue()).intValue();
-								
+																
 				ip.vertices[0] = new Point(x1, y1);
 				ip.vertices[1] = new Point(x2, y2);
 				
 				plotter.setEndPoints(ip.vertices[0], ip.vertices[1]);
 				
 				ip.vertexIndex = 2;
+				
+				double pixelsPerSample = Double.parseDouble(fieldPixelsPerSample.getText());
+				plotter.pixelsPerSample = pixelsPerSample;
+				
+				plotter.sample();
 			}
 		}
 		catch(Exception e)
@@ -1393,7 +1466,13 @@ public class GUI extends JFrame
 			tableSet("" + srgb[2], 3);
 			tableIncrement();
 		}	
-	}		
+	}	
+	public void log_pixels_per_length()
+	{
+		tableSet("pixels/length", 0);
+		tableSet("" + ip.pixelsPerMM, 1);
+		tableIncrement();
+	}
 	
 	/** Reads image from file and loads it into ImagePanel. 
 	 */
@@ -1528,11 +1607,21 @@ public class GUI extends JFrame
 			ip.vertexIndex = 0;
 			for (int i = 1; i < buttonsMeasure.length; i++)
 				buttonsMeasure[i].setEnabled(true);
+			
+			// Hide profiler if necessary
+			
+			if (newMode == PROFILER)
+				plotter.hide();
 		}
 		else // Selecting a new mode
 		{
 			setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
 			mode = newMode;
+			
+			// Show profiler if necessary
+			
+			if (mode == PROFILER)
+				plotter.show();
 			
 			// Disable all other buttons
 			
@@ -1633,6 +1722,11 @@ public class GUI extends JFrame
 		fieldsRuler[RU_SCALE].setText(Calc.precise12.format(ip.pixelsPerMM));
 	}
 	
+	public Color getXORColor(Color color)
+	{
+		return new Color(xorBack^xorFront^color.getRGB());
+	}
+	
 	public void displayColor(Color color, int[] rgb, double[] XYZ, double[] resultsXYZ, double[] resultsxy, double[] resultsRGB, double[] resultsSatExtrap)
 	{
 		// Set RGB color		
@@ -1726,6 +1820,7 @@ public class GUI extends JFrame
 		else if (mode == PROFILER)
 		{						
 			displayProfiler(plotter.p1, plotter.p2);
+			fieldPixelsPerSample.setText(Calc.precise12.format(plotter.pixelsPerSample));
 			if (ip.vertexIndex == 0)
 			{
 				ip.vertexIndex = 2;
@@ -1747,11 +1842,18 @@ public class GUI extends JFrame
 		public void propertyChange(PropertyChangeEvent e) 
 		{
 			JSplitPane pane = (JSplitPane)e.getSource();
-			int size = pane.getDividerLocation();
-			if (size < 175)
-				pane.setDividerLocation(175);
-			tableWrapper.setPreferredSize(new Dimension(size - 5, 1));
-			tableWrapper.revalidate();
+			if (pane.equals(content))
+				{
+				int size = pane.getDividerLocation();
+				if (size < 175)
+					pane.setDividerLocation(175);
+				tableWrapper.setPreferredSize(new Dimension(size - 5, 1));
+				tableWrapper.revalidate();
+			}
+			else if (pane.equals(paneCenter))
+			{
+				
+			}
 		}		
 	}
 
@@ -1813,9 +1915,9 @@ public class GUI extends JFrame
 				{
 					inputTableSize();
 				}
-				else if (button.equals(buttonProfile))
+				else if (button.equals(buttonSampleRate))
 				{
-					inputProfileLine();
+					inputProfiler();
 				}
 			}
 			else if (parent instanceof JRadioButton)
@@ -1831,6 +1933,13 @@ public class GUI extends JFrame
 				JToggleButton button = (JToggleButton)parent;
 				if (button.equals(buttonLog))
 					isLogging = buttonLog.isSelected();
+				else
+					for (int i = 0; i < profilerParams.length; i++)
+						if (button.equals(profilerButtons[i]))
+						{							
+							plotter.setPlotEnabled(i, button.isSelected());
+							refresh();
+						}
 			}			
 			else if (parent instanceof JComboBox<?>)
 			{
@@ -1892,7 +2001,7 @@ public class GUI extends JFrame
 									
 					// Update values	
 												
-					inputProfileLine();
+					inputProfiler();
 					plotter.editLock = false;
 				}
 			}
@@ -2023,6 +2132,10 @@ public class GUI extends JFrame
 				else if (name.equals("Log image name"))
 				{
 					logName();
+				}
+				else if (name.equals("Log pixels per length"))
+				{
+					log_pixels_per_length();
 				}
 				else if (name.equals("Log spectrum XYZ"))
 				{

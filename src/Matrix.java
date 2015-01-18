@@ -155,8 +155,6 @@ public class Matrix
             {a2, c2}
         };
         numeratorY = det(tempMatrix);
-        
-        System.out.println(denominator + "  " + numeratorX + "  " + numeratorY);
 
         // Solving for the point
 
