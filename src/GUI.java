@@ -148,7 +148,7 @@ public class GUI extends JFrame
 	public static final String[] labelsProfiler = {"Extrapolate", "Slope Lock"};
 	public static final String[] labelsProfilerSpinner = {"x1", "y1", "x2", "y2"};
 	
-	public static final String[] profilerParams = {"", "", "sRed", "sGreen", "sBlue", "linRed", "linGreen", "linBlue", "X", "Y", "Z", "\u03BB (XYZ fit)", "\u03BB (xyY fit)", "\u03BB (RGB fit)", "\u03BB (sat extrap)"};
+	public static final String[] profilerParams = {"Pixels", "", "sRed", "sGreen", "sBlue", "linRed", "linGreen", "linBlue", "X", "Y", "Z", "\u03BB (XYZ fit)", "\u03BB (xyY fit)", "\u03BB (RGB fit)", "\u03BB (sat extrap)"};
 		
 	public JTextField[] fieldsImSpecs = new JTextField[labelsSpecs.length];
 	public JTextField[] fieldsAngle = new JTextField[labelsAngle.length];
@@ -202,7 +202,7 @@ public class GUI extends JFrame
 		
 	// Buttons
 		
-	public JButton buttonTableIndex, buttonTableSize, buttonLengthScale, buttonSampleRate;
+	public JButton buttonTableIndex, buttonTableSize, buttonLengthScale, buttonSampleRate, buttonLogProfiles;
 	
 	// Other Stuff
 	
@@ -1066,6 +1066,19 @@ public class GUI extends JFrame
 			}
 		}
 		
+		// Add log button
+		
+		c.gridy = starty + profilerButtons.length / 2;	
+		c.insets = new Insets(2,4,2,4);		
+		
+		gridBagSeparator(profiler, c, 0, ++c.gridy, 4);	
+		c.fill = GridBagConstraints.NONE;
+		
+		buttonLogProfiles = new JButton("Log Profiles");
+		buttonLogProfiles.addActionListener(myActionListener);
+		
+		gridBagAdd(profiler, c, 0, ++c.gridy, 4, GridBagConstraints.CENTER, buttonLogProfiles);
+				
 		return profiler;
 	}
 	
@@ -1386,6 +1399,55 @@ public class GUI extends JFrame
 		{
 			tableSet(ip.mm.file.getName(), 0);
 			tableIncrement();
+		}
+		catch (Exception e)
+		{				
+		}
+	}
+	
+	public void logProfiles()
+	{
+		try
+		{
+			// Store all sampled values in table columns
+			
+			int counter = 1;
+			
+			// Count required columns
+			
+			for (int i = 0; i < profilerParams.length; i++)
+				if (plotter.enabledPlots[i])
+					counter++;
+			
+			if (counter > tableCols)
+				setTableColCount(counter);
+			
+			// Store selected params
+			
+			int params[] = new int[counter];
+			counter = 0;
+			
+			for (int i = 0; i < params.length; i++)
+				if (plotter.enabledPlots[i])
+					params[counter++] = i;
+			
+			// Set Headers
+			
+			for (int i = 0; i < params.length; i++)
+				tableSet(profilerParams[params[i]], i);
+			tableIncrement();
+			
+			// Iterate through data
+			
+			for (int i = 0; i < plotter.data[0].length; i++)
+			{
+				tableSet("" + plotter.data[0][i], 0);
+				
+				for (int j = 1; j < params.length; i++)
+					tableSet("" + plotter.data[params[j]], i);
+				
+				tableIncrement();				
+			}			
 		}
 		catch (Exception e)
 		{				
@@ -1915,6 +1977,10 @@ public class GUI extends JFrame
 				else if (button.equals(buttonSampleRate))
 				{
 					inputProfiler();
+				}
+				else if (button.equals(buttonLogProfiles))
+				{
+					logProfiles();
 				}
 			}
 			else if (parent instanceof JRadioButton)
