@@ -196,6 +196,7 @@ public class GUI extends JFrame
 	public double zoomStep = 0.1;	// The increase in zoom (1 = 100%) per scroll increment
 	
 	public Logger logger;
+	public Plotter plotter;
 	
 	public String title;
 
@@ -207,6 +208,7 @@ public class GUI extends JFrame
 		setJMenuBar(createMenuBar());
 		setContentPane(createContent());
 		logger = new Logger(table);
+		plotter = new Plotter(this);
 		refresh();
 		
 		// Set up keyboard stuff
@@ -1082,6 +1084,7 @@ public class GUI extends JFrame
 				ip.vertices[0].setLocation(ip.vertices[1]);
 				ip.vertices[1].setLocation(ip.vertices[0]);
 			}
+			plotter.setEndPoints(ip.vertices[0], ip.vertices[1]);
 			displayProfiler(ip.vertices[0], ip.vertices[1]);
 		}
 	}
@@ -1677,10 +1680,10 @@ public class GUI extends JFrame
 			fieldsRuler[RU_SCALE].setText(Calc.precise12.format(ip.pixelsPerMM));
 		else if (mode == PROFILER)
 		{
-			spinnersProfiler[PF_X1].setValue(ip.vertices[0].x);
-			spinnersProfiler[PF_Y1].setValue(ip.vertices[0].y);
-			spinnersProfiler[PF_X2].setValue(ip.vertices[1].x);
-			spinnersProfiler[PF_Y2].setValue(ip.vertices[1].y);
+			spinnersProfiler[PF_X1].setValue(plotter.p1.x);
+			spinnersProfiler[PF_Y1].setValue(plotter.p1.y);
+			spinnersProfiler[PF_X2].setValue(plotter.p2.x);
+			spinnersProfiler[PF_Y2].setValue(plotter.p2.y);
 		}
 	}
 	

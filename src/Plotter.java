@@ -1,6 +1,7 @@
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
+import java.awt.Point;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 
@@ -22,6 +23,9 @@ public class Plotter extends JPanel
 							// Second coordinate is the magnitude at that location
 	public Color color;
 	
+	public Point p1 = new Point(0, 0);
+	public Point p2 = new Point(0, 0);
+	
 	public Plotter(GUI parent) 
 	{
 		this.parent = parent;
@@ -42,6 +46,12 @@ public class Plotter extends JPanel
 	public void recalculateScale()
 	{
 		
+	}
+	
+	public void setEndPoints(Point p1, Point p2)
+	{
+		this.p1.setLocation(p1);
+		this.p2.setLocation(p2);
 	}
 	
 	private class MyListener extends ComponentAdapter
