@@ -121,6 +121,7 @@ public class GUI extends JFrame
 	
 	public static final int PF_EXTRAPOLATE = 0;
 	public static final int PF_SLOPE_LOCK = 1;
+	public static final int PF_SELECT_ALL = 2;
 	public static final int PF_X_COORD = 0;
 	public static final int PF_Y_COORD = 1;
 	public static final int PF_T_COORD = 2;
@@ -148,7 +149,7 @@ public class GUI extends JFrame
 	public static final String[] labelsAngle = {"Degrees"};
 	public static final String[] labelsPrimer = {"Pixels/length"};
 	public static final String[] labelsRuler = {"Length", "Pixels/length"};
-	public static final String[] labelsProfiler = {"Extrapolate", "Slope Lock"};
+	public static final String[] labelsProfiler = {"Extrapolate", "Slope Lock", "Select All"};
 	public static final String[] labelsProfilerSpinner = {"x1", "y1", "x2", "y2"};
 	
 	public static final String[] profilerParams = {"x coord", "y coord", "t coord", "sRed", "sGreen", "sBlue", "linRed", "linGreen", "linBlue", "X", "Y", "Z", "\u03BB (XYZ fit)", "\u03BB (xyY fit)", "\u03BB (RGB fit)", "\u03BB (sat extrap)"};
@@ -159,8 +160,8 @@ public class GUI extends JFrame
 	public JTextField[] fieldsRuler = new JTextField[labelsRuler.length];
 	public JSpinner[] spinnersProfiler = new JSpinner[4];
 	
-	public JRadioButton[] buttonsOptionProfiler = new JRadioButton[labelsProfiler.length];
-	public JToggleButton[] buttonsProfiler = new JToggleButton[profilerParams.length];
+	public JRadioButton[] buttonsProfilerOptions = new JRadioButton[labelsProfiler.length];
+	public JToggleButton[] buttonsProfilerParams = new JToggleButton[profilerParams.length];
 	
 	// Profiler Panel Fields
 	
@@ -296,13 +297,6 @@ public class GUI extends JFrame
 		data = new JMenu("Data");
 		data.setMnemonic('d');
 		
-		button = new JMenuItem ("Log image metadata");
-		button.setMnemonic('m');
-		button.setAccelerator(KeyStroke.getKeyStroke (
-				KeyEvent.VK_M, menuKeyMask));
-		button.addActionListener (menuListener);
-		data.add(button);
-		
 		button = new JMenuItem ("Log image name");
 		button.setMnemonic('n');
 		button.setAccelerator(KeyStroke.getKeyStroke (
@@ -310,13 +304,30 @@ public class GUI extends JFrame
 		button.addActionListener (menuListener);
 		data.add(button);
 		
-		data.add(new JSeparator());
+		button = new JMenuItem ("Log image metadata");
+		button.setMnemonic('m');
+		button.setAccelerator(KeyStroke.getKeyStroke (
+				KeyEvent.VK_M, menuKeyMask));
+		button.addActionListener (menuListener);
+		data.add(button);				
 		
-		button = new JMenuItem ("Log pixels per length");
+		data.add(new JSeparator());	
+		
+		button = new JMenuItem ("Log profile endpoints");
+		button.setMnemonic('e');
+		button.addActionListener (menuListener);
+		data.add(button);
+		
+		button = new JMenuItem ("Log all profiles");
 		button.setMnemonic('p');
 		button.addActionListener (menuListener);
 		data.add(button);
-				
+		
+		button = new JMenuItem ("Log pixels per length");
+		button.setMnemonic('x');
+		button.addActionListener (menuListener);
+		data.add(button);		
+						
 		data.add(new JSeparator());
 		
 		button = new JMenuItem ("Log spectrum XYZ");
@@ -325,7 +336,7 @@ public class GUI extends JFrame
 		data.add(button);
 		
 		button = new JMenuItem ("Log spectrum xyY");
-		button.setMnemonic('x');
+		button.setMnemonic('y');
 		button.addActionListener (menuListener);
 		data.add(button);
 		
@@ -993,11 +1004,11 @@ public class GUI extends JFrame
 		
 		for (int i = 0; i < profilerParams.length; i++)
 		{
-			buttonsProfiler[i] = new JToggleButton(profilerParams[i]);
-			buttonsProfiler[i].addActionListener(myActionListener);
-			buttonsProfiler[i].setMargin(new Insets(2,0,2,0));
-			buttonsProfiler[i].setBackground(Plotter.colors[i]);
-			buttonsProfiler[i].setForeground(Color.black);
+			buttonsProfilerParams[i] = new JToggleButton(profilerParams[i]);
+			buttonsProfilerParams[i].addActionListener(myActionListener);
+			buttonsProfilerParams[i].setMargin(new Insets(2,0,2,0));
+			buttonsProfilerParams[i].setBackground(Plotter.colors[i]);
+			buttonsProfilerParams[i].setForeground(Color.black);
 		}
 		
 		// Add line specification fields
@@ -1022,12 +1033,13 @@ public class GUI extends JFrame
 		
 		for (int i = 0; i < labelsProfiler.length; i++)
 		{
-			buttonsOptionProfiler[i] = new JRadioButton(labelsProfiler[i]);
-			buttonsOptionProfiler[i].addActionListener(myActionListener);
-			gridBagAdd(profiler, c, 0, ++c.gridy, 4, GridBagConstraints.CENTER, buttonsOptionProfiler[i]);
+			buttonsProfilerOptions[i] = new JRadioButton(labelsProfiler[i]);
+			buttonsProfilerOptions[i].addActionListener(myActionListener);
+			gridBagAdd(profiler, c, 0, ++c.gridy, 4, GridBagConstraints.CENTER, buttonsProfilerOptions[i]);
 		}
-		buttonsOptionProfiler[PF_EXTRAPOLATE].setSelected(true);
-		buttonsOptionProfiler[PF_SLOPE_LOCK].setSelected(false);
+		buttonsProfilerOptions[PF_EXTRAPOLATE].setSelected(true);
+		buttonsProfilerOptions[PF_SLOPE_LOCK].setSelected(false);
+		buttonsProfilerOptions[PF_SELECT_ALL].setSelected(false);
 		
 		c.insets = new Insets(2,4,2,4);
 		
@@ -1059,9 +1071,9 @@ public class GUI extends JFrame
 		int startx = 0;
 		int dy = 0;
 						
-		for (int i = PF_SRED; i < buttonsProfiler.length; i++)
+		for (int i = PF_SRED; i < buttonsProfilerParams.length; i++)
 		{
-			gridBagAdd(profiler, c, startx, starty + ++dy, 2, GridBagConstraints.CENTER, buttonsProfiler[i]);
+			gridBagAdd(profiler, c, startx, starty + ++dy, 2, GridBagConstraints.CENTER, buttonsProfilerParams[i]);
 			if (i == PF_LINBLUE)
 			{
 				startx = 2;
@@ -1408,6 +1420,34 @@ public class GUI extends JFrame
 		}
 	}
 	
+	public void log_profile_endpoints()
+	{
+		try
+		{
+			if (mode == PROFILER)
+			{
+				tableSet("x1", 0);
+				tableSet("" + plotter.p1.x, 1);
+				tableIncrement();
+				
+				tableSet("y1", 0);
+				tableSet("" + plotter.p1.y, 1);
+				tableIncrement();
+				
+				tableSet("x2", 0);
+				tableSet("" + plotter.p2.x, 1);
+				tableIncrement();
+				
+				tableSet("y2", 0);
+				tableSet("" + plotter.p2.y, 1);
+				tableIncrement();
+			}
+		}
+		catch (Exception e)
+		{				
+		}
+	}
+	
 	public void logProfiles()
 	{
 		try
@@ -1460,7 +1500,10 @@ public class GUI extends JFrame
 					tableSet("" + plotter.data[params[j]][i], j);
 				
 				tableIncrement();				
-			}			
+			}	
+			
+			// Release edit lock
+			plotter.editLock = false;
 		}
 		catch (Exception e)
 		{				
@@ -1659,11 +1702,26 @@ public class GUI extends JFrame
 		}
 	}
 	
+	public void setSelectAllProfiles(boolean selectAll)
+	{
+		plotter.editLock = true;
+		for (int i = PF_SRED; i < profilerParams.length; i++)
+		{
+			buttonsProfilerParams[i].setSelected(selectAll);
+			plotter.setPlotEnabled(i, selectAll);
+			System.out.println(profilerParams[i] + " - " + plotter.plotEnabled[i]);
+		}
+		plotter.editLock = false;
+		
+		refresh();
+	}
+	
 	/** NONE = 0;<br>
 	 * ANGLE = 1;<br>
  	 * PRIMER = 2;<br>
 	 * RULER = 3;<br>
 	 * COLOR = 4;<br>
+	 * PROFILER = 5;<br>
 	 */
 	public void setMeasuringMode(int newMode)
 	{
@@ -1999,10 +2057,12 @@ public class GUI extends JFrame
 			else if (parent instanceof JRadioButton)
 			{
 				JRadioButton button = (JRadioButton)parent;
-				if (button.equals(buttonsOptionProfiler[PF_EXTRAPOLATE]))
+				if (button.equals(buttonsProfilerOptions[PF_EXTRAPOLATE]))
 					plotter.extrapolate = button.isSelected();
-				else if (button.equals(buttonsOptionProfiler[PF_SLOPE_LOCK]))
+				else if (button.equals(buttonsProfilerOptions[PF_SLOPE_LOCK]))
 					plotter.slopeLock = button.isSelected();
+				else if (button.equals(buttonsProfilerOptions[PF_SELECT_ALL]))
+					setSelectAllProfiles(button.isSelected());
 			}
 			else if (parent instanceof JToggleButton)
 			{
@@ -2010,12 +2070,19 @@ public class GUI extends JFrame
 				if (button.equals(buttonLog))
 					isLogging = buttonLog.isSelected();
 				else
-					for (int i = 0; i < profilerParams.length; i++)
-						if (button.equals(buttonsProfiler[i]))
-						{							
-							plotter.setPlotEnabled(i, button.isSelected());
-							refresh();
+				{
+					if (!plotter.editLock)
+					{
+						for (int i = 0; i < profilerParams.length; i++)
+						{
+							if (button.equals(buttonsProfilerParams[i]))
+							{							
+								plotter.setPlotEnabled(i, button.isSelected());
+								refresh();
+							}
 						}
+					}
+				}
 			}			
 			else if (parent instanceof JComboBox<?>)
 			{
@@ -2209,6 +2276,19 @@ public class GUI extends JFrame
 				{
 					logName();
 				}
+				else if (name.equals("Log profile endpoints"))
+				{
+					log_profile_endpoints();
+				}
+				else if (name.equals("Log all profiles"))
+				{
+					if (mode == PROFILER)
+					{
+						buttonsProfilerOptions[PF_SELECT_ALL].setSelected(true);
+						setSelectAllProfiles(true);
+						logProfiles();
+					}
+				}
 				else if (name.equals("Log pixels per length"))
 				{
 					log_pixels_per_length();
@@ -2228,7 +2308,7 @@ public class GUI extends JFrame
 				else if (name.equals("Log spectrum sRGB"))
 				{
 					log_cmf_sRGB();
-				}
+				}				
 				else if (name.equals("Jump to Origin"))
 				{
 					ip.setOffset(new Point(0, 0));

@@ -469,6 +469,14 @@ public class Plotter extends JPanel
 		}
 	}
 	
+	public boolean isAllSelected()
+	{
+		boolean allSelected = true;
+		for (int i = GUI.PF_SRED; i < GUI.profilerParams.length; i++)
+			allSelected = allSelected && plotEnabled[i];
+		return allSelected;
+	}
+	
 	private class MyListener extends ComponentAdapter
 	{
 		public void componentResized(ComponentEvent e) 
