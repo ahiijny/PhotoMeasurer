@@ -99,13 +99,27 @@ public class Plotter extends JPanel
 		repaint();
 	}
 		
-	public void setEndPoints(Point p1, Point p2)
-	{
+	public void setEndPoints(Point p1, Point p2, boolean sample)
+	{	
+		// Set Points
+		
 		if (extrapolate)
 			if (parent.ip.img != null)
 				extrapolate(p1, p2, parent.ip.img.getWidth(), parent.ip.img.getHeight());
 		this.p1.setLocation(p1);
 		this.p2.setLocation(p2);
+		
+		// Find and store the new origin and direction vector
+		
+		r = new double[] {p1.x, p1.y};
+		m = new double[] {p2.x, p2.y};
+		m = Calc.add(m, Calc.scale(r, -1));
+		m = Calc.unit(m);	
+		
+		// Sample if necessary
+		
+		if (sample)
+			sample();
 	}
 	
 	public int getDeltaX()
@@ -226,14 +240,7 @@ public class Plotter extends JPanel
 					p1.setLocation(extrapTop[0], extrapTop[1]);
 				}
 			}
-		}	
-		
-		// Find and store the new origin and direction vector
-		
-		r = new double[] {p1.x, p1.y};
-		m = new double[] {p2.x, p2.y};
-		m = Calc.add(m, Calc.scale(r, -1));
-		m = Calc.unit(m);	
+		}				
 	}
 	
 	public double getLength()
@@ -270,6 +277,12 @@ public class Plotter extends JPanel
 		{
 			points[i] = Calc.add(r, Calc.scale(m, i * dt));
 		}
+		
+		System.out.print ("r = ");
+		Calc.println(r);
+		System.out.print ("m = ");
+		Calc.println(m);
+		System.out.println("dt = " + dt);
 		
 		// Sample datasets
 		for (int i = 0; i < n; i++)
@@ -316,7 +329,7 @@ public class Plotter extends JPanel
 		double stepRGB = height / (maxRGB - minRGB);
 		double stepXYZ = height / (maxXYZ - minXYZ);
 		double stepLambda = height / (maxLambda - minLambda);
-		
+						
 		vStep[GUI.PF_SRED] = stepRGB;
 		vStep[GUI.PF_SGREEN] = stepRGB;
 		vStep[GUI.PF_SBLUE] = stepRGB;
@@ -331,19 +344,19 @@ public class Plotter extends JPanel
 		vStep[GUI.PF_LAM_SAT_EXTRAP] = stepLambda;
 		vStep[GUI.PF_LAM_RGB] = stepLambda;
 		
-		vOffset[GUI.PF_SRED] = -minRGB / stepRGB + insets.bottom;
-		vOffset[GUI.PF_SGREEN] = -minRGB / stepRGB + insets.bottom;
-		vOffset[GUI.PF_SBLUE] = -minRGB / stepRGB + insets.bottom;
-		vOffset[GUI.PF_LINRED] = -minRGB / stepRGB + insets.bottom;
-		vOffset[GUI.PF_LINGREEN] = -minRGB / stepRGB + insets.bottom;
-		vOffset[GUI.PF_LINBLUE] = -minRGB / stepRGB + insets.bottom;
-		vOffset[GUI.PF_X] = -minXYZ / stepXYZ + insets.bottom;
-		vOffset[GUI.PF_Y] = -minXYZ / stepXYZ + insets.bottom;
-		vOffset[GUI.PF_Z] = -minXYZ / stepXYZ + insets.bottom;
-		vOffset[GUI.PF_LAM_XYZ] = -minLambda / stepLambda + insets.bottom;
-		vOffset[GUI.PF_LAM_xy] = -minLambda / stepLambda + insets.bottom;
-		vOffset[GUI.PF_LAM_SAT_EXTRAP] = -minLambda / stepLambda + insets.bottom;
-		vOffset[GUI.PF_LAM_RGB] = -minLambda / stepLambda + insets.bottom;		
+		vOffset[GUI.PF_SRED] = -minRGB * stepRGB + insets.bottom;
+		vOffset[GUI.PF_SGREEN] = -minRGB * stepRGB + insets.bottom;
+		vOffset[GUI.PF_SBLUE] = -minRGB * stepRGB + insets.bottom;
+		vOffset[GUI.PF_LINRED] = -minRGB * stepRGB + insets.bottom;
+		vOffset[GUI.PF_LINGREEN] = -minRGB * stepRGB + insets.bottom;
+		vOffset[GUI.PF_LINBLUE] = -minRGB * stepRGB + insets.bottom;
+		vOffset[GUI.PF_X] = -minXYZ * stepXYZ + insets.bottom;
+		vOffset[GUI.PF_Y] = -minXYZ * stepXYZ + insets.bottom;
+		vOffset[GUI.PF_Z] = -minXYZ * stepXYZ + insets.bottom;
+		vOffset[GUI.PF_LAM_XYZ] = -minLambda * stepLambda + insets.bottom;
+		vOffset[GUI.PF_LAM_xy] = -minLambda * stepLambda + insets.bottom;
+		vOffset[GUI.PF_LAM_SAT_EXTRAP] = -minLambda * stepLambda + insets.bottom;
+		vOffset[GUI.PF_LAM_RGB] = -minLambda * stepLambda + insets.bottom;	
 	}
 	
 	public double[] sample_RGB(double[] location)
@@ -434,7 +447,7 @@ public class Plotter extends JPanel
 			for (int i = 0; i < data.length; i++)
 			{
 				if (enabledPlots[i])
-				{
+				{						
 					g.setColor(colors[i]);
 					int lastx = x[0];
 					int lasty = (int)(vStep[i] * data[i][0] + vOffset[i] + 0.5);
@@ -442,7 +455,7 @@ public class Plotter extends JPanel
 					for (int t = 0; t < n; t++)
 					{
 						int x1 = x[t];
-						int y1 = (int)(vStep[i] * data[i][t] + vOffset[i] + 0.5);						
+						int y1 = (int)(vStep[i] * data[i][t] + vOffset[i] + 0.5);	
 						g.fillRect(x1, y1, 1, 1);
 						g.drawLine(x1, y1, lastx, lasty);
 						lastx = x1;

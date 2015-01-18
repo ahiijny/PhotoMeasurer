@@ -1178,9 +1178,8 @@ public class GUI extends JFrame
 				ip.vertices[0].setLocation(ip.vertices[1]);
 				ip.vertices[1].setLocation(temp);
 			}
-			plotter.setEndPoints(ip.vertices[0], ip.vertices[1]);			
+			plotter.setEndPoints(ip.vertices[0], ip.vertices[1], true);			
 			displayProfiler(ip.vertices[0], ip.vertices[1]);	
-			plotter.sample();
 			plotter.repaint();
 		}
 	}
@@ -1269,14 +1268,12 @@ public class GUI extends JFrame
 				ip.vertices[0] = new Point(x1, y1);
 				ip.vertices[1] = new Point(x2, y2);
 				
-				plotter.setEndPoints(ip.vertices[0], ip.vertices[1]);
+				plotter.setEndPoints(ip.vertices[0], ip.vertices[1], true);
 				
 				ip.vertexIndex = 2;
 				
 				double pixelsPerSample = Double.parseDouble(fieldPixelsPerSample.getText());
 				plotter.pixelsPerSample = pixelsPerSample;
-				
-				plotter.sample();
 			}
 		}
 		catch(Exception e)
