@@ -121,19 +121,22 @@ public class GUI extends JFrame
 	
 	public static final int PF_EXTRAPOLATE = 0;
 	public static final int PF_SLOPE_LOCK = 1;
-	public static final int PF_SRED = 2;
-	public static final int PF_SGREEN = 3;
-	public static final int PF_SBLUE = 4;
-	public static final int PF_LINRED = 5;
-	public static final int PF_LINGREEN = 6;
-	public static final int PF_LINBLUE = 7;
-	public static final int PF_X = 8;
-	public static final int PF_Y = 9;
-	public static final int PF_Z = 10;
-	public static final int PF_LAM_XYZ = 11;
-	public static final int PF_LAM_xy = 12;
-	public static final int PF_LAM_RGB = 13;
-	public static final int PF_LAM_SAT_EXTRAP = 14;
+	public static final int PF_X_COORD = 0;
+	public static final int PF_Y_COORD = 1;
+	public static final int PF_T_COORD = 2;
+	public static final int PF_SRED = 3;
+	public static final int PF_SGREEN = 4;
+	public static final int PF_SBLUE = 5;
+	public static final int PF_LINRED = 6;
+	public static final int PF_LINGREEN = 7;
+	public static final int PF_LINBLUE = 8;
+	public static final int PF_X = 9;
+	public static final int PF_Y = 10;
+	public static final int PF_Z = 11;
+	public static final int PF_LAM_XYZ = 12;
+	public static final int PF_LAM_xy = 13;
+	public static final int PF_LAM_RGB = 14;
+	public static final int PF_LAM_SAT_EXTRAP = 15;
 	
 	// Measurement Panel Fields
 		
@@ -148,7 +151,7 @@ public class GUI extends JFrame
 	public static final String[] labelsProfiler = {"Extrapolate", "Slope Lock"};
 	public static final String[] labelsProfilerSpinner = {"x1", "y1", "x2", "y2"};
 	
-	public static final String[] profilerParams = {"Pixels", "", "sRed", "sGreen", "sBlue", "linRed", "linGreen", "linBlue", "X", "Y", "Z", "\u03BB (XYZ fit)", "\u03BB (xyY fit)", "\u03BB (RGB fit)", "\u03BB (sat extrap)"};
+	public static final String[] profilerParams = {"x coord", "y coord", "t coord", "sRed", "sGreen", "sBlue", "linRed", "linGreen", "linBlue", "X", "Y", "Z", "\u03BB (XYZ fit)", "\u03BB (xyY fit)", "\u03BB (RGB fit)", "\u03BB (sat extrap)"};
 		
 	public JTextField[] fieldsImSpecs = new JTextField[labelsSpecs.length];
 	public JTextField[] fieldsAngle = new JTextField[labelsAngle.length];
@@ -156,8 +159,8 @@ public class GUI extends JFrame
 	public JTextField[] fieldsRuler = new JTextField[labelsRuler.length];
 	public JSpinner[] spinnersProfiler = new JSpinner[4];
 	
-	public JRadioButton[] profilerOptionButtons = new JRadioButton[labelsProfiler.length];
-	public JToggleButton[] profilerButtons = new JToggleButton[profilerParams.length];
+	public JRadioButton[] buttonsOptionProfiler = new JRadioButton[labelsProfiler.length];
+	public JToggleButton[] buttonsProfiler = new JToggleButton[profilerParams.length];
 	
 	// Profiler Panel Fields
 	
@@ -990,11 +993,11 @@ public class GUI extends JFrame
 		
 		for (int i = 0; i < profilerParams.length; i++)
 		{
-			profilerButtons[i] = new JToggleButton(profilerParams[i]);
-			profilerButtons[i].addActionListener(myActionListener);
-			profilerButtons[i].setMargin(new Insets(2,0,2,0));
-			profilerButtons[i].setBackground(Plotter.colors[i]);
-			profilerButtons[i].setForeground(Color.black);
+			buttonsProfiler[i] = new JToggleButton(profilerParams[i]);
+			buttonsProfiler[i].addActionListener(myActionListener);
+			buttonsProfiler[i].setMargin(new Insets(2,0,2,0));
+			buttonsProfiler[i].setBackground(Plotter.colors[i]);
+			buttonsProfiler[i].setForeground(Color.black);
 		}
 		
 		// Add line specification fields
@@ -1019,12 +1022,12 @@ public class GUI extends JFrame
 		
 		for (int i = 0; i < labelsProfiler.length; i++)
 		{
-			profilerOptionButtons[i] = new JRadioButton(labelsProfiler[i]);
-			profilerOptionButtons[i].addActionListener(myActionListener);
-			gridBagAdd(profiler, c, 0, ++c.gridy, 4, GridBagConstraints.CENTER, profilerOptionButtons[i]);
+			buttonsOptionProfiler[i] = new JRadioButton(labelsProfiler[i]);
+			buttonsOptionProfiler[i].addActionListener(myActionListener);
+			gridBagAdd(profiler, c, 0, ++c.gridy, 4, GridBagConstraints.CENTER, buttonsOptionProfiler[i]);
 		}
-		profilerOptionButtons[PF_EXTRAPOLATE].setSelected(true);
-		profilerOptionButtons[PF_SLOPE_LOCK].setSelected(false);
+		buttonsOptionProfiler[PF_EXTRAPOLATE].setSelected(true);
+		buttonsOptionProfiler[PF_SLOPE_LOCK].setSelected(false);
 		
 		c.insets = new Insets(2,4,2,4);
 		
@@ -1056,10 +1059,10 @@ public class GUI extends JFrame
 		int startx = 0;
 		int dy = 0;
 						
-		for (int i = 2; i < profilerButtons.length; i++)
+		for (int i = PF_SRED; i < buttonsProfiler.length; i++)
 		{
-			gridBagAdd(profiler, c, startx, starty + ++dy, 2, GridBagConstraints.CENTER, profilerButtons[i]);
-			if (i == profilerButtons.length / 2)
+			gridBagAdd(profiler, c, startx, starty + ++dy, 2, GridBagConstraints.CENTER, buttonsProfiler[i]);
+			if (i == PF_LINBLUE)
 			{
 				startx = 2;
 				dy = 0;
@@ -1068,7 +1071,7 @@ public class GUI extends JFrame
 		
 		// Add log button
 		
-		c.gridy = starty + profilerButtons.length / 2;	
+		c.gridy = starty + PF_LINBLUE;	
 		c.insets = new Insets(2,4,2,4);		
 		
 		gridBagSeparator(profiler, c, 0, ++c.gridy, 4);	
@@ -1279,14 +1282,14 @@ public class GUI extends JFrame
 				int y2 = ((Integer)spinnersProfiler[PF_Y2].getValue()).intValue();
 																
 				ip.vertices[0] = new Point(x1, y1);
-				ip.vertices[1] = new Point(x2, y2);
-				
-				plotter.setEndPoints(ip.vertices[0], ip.vertices[1], true);
+				ip.vertices[1] = new Point(x2, y2);							
 				
 				ip.vertexIndex = 2;
 				
 				double pixelsPerSample = Double.parseDouble(fieldPixelsPerSample.getText());
 				plotter.pixelsPerSample = pixelsPerSample;
+				
+				plotter.setEndPoints(ip.vertices[0], ip.vertices[1], true);
 			}
 		}
 		catch(Exception e)
@@ -1408,30 +1411,35 @@ public class GUI extends JFrame
 	public void logProfiles()
 	{
 		try
-		{
-			// Store all sampled values in table columns
+		{		
+			// Edit lock
+			plotter.editLock = true;						
 			
-			int counter = 1;
+			// We need x-coordinates, y-coordinates, and t-coordinates too.			
+			plotter.plotEnabled[PF_X_COORD] = true;
+			plotter.plotEnabled[PF_Y_COORD] = true;
+			plotter.plotEnabled[PF_T_COORD] = true;
 			
-			// Count required columns
+			// Count required columns			
+			int counter = 0;
 			
 			for (int i = 0; i < profilerParams.length; i++)
-				if (plotter.enabledPlots[i])
-					counter++;
+				if (plotter.plotEnabled[i])
+					counter++;			
 			
+			// Store all sampled parameters in table columns
 			System.out.println("Count = " + counter);
 			
+			// Increase table size if necessary			
 			if (counter > tableCols)
 				setTableColCount(counter);
 			
-			// Store selected params
-			
+			// Store indices of sampled params			
 			int params[] = new int[counter];
-			params[0] = 0;
-			counter = 1;
+			counter = 0;
 			
-			for (int i = 1; i < profilerParams.length; i++)
-				if (plotter.enabledPlots[i])
+			for (int i = 0; i < profilerParams.length; i++)
+				if (plotter.plotEnabled[i])
 					params[counter++] = i;
 			
 			// Set Headers
@@ -1442,7 +1450,7 @@ public class GUI extends JFrame
 			
 			// Iterate through data
 			
-			System.out.println(plotter.data[0].length);
+			System.out.println("n = " + plotter.data[0].length);
 			
 			for (int i = 0; i < plotter.data[0].length; i++)
 			{
@@ -1991,9 +1999,9 @@ public class GUI extends JFrame
 			else if (parent instanceof JRadioButton)
 			{
 				JRadioButton button = (JRadioButton)parent;
-				if (button.equals(profilerOptionButtons[PF_EXTRAPOLATE]))
+				if (button.equals(buttonsOptionProfiler[PF_EXTRAPOLATE]))
 					plotter.extrapolate = button.isSelected();
-				else if (button.equals(profilerOptionButtons[PF_SLOPE_LOCK]))
+				else if (button.equals(buttonsOptionProfiler[PF_SLOPE_LOCK]))
 					plotter.slopeLock = button.isSelected();
 			}
 			else if (parent instanceof JToggleButton)
@@ -2003,7 +2011,7 @@ public class GUI extends JFrame
 					isLogging = buttonLog.isSelected();
 				else
 					for (int i = 0; i < profilerParams.length; i++)
-						if (button.equals(profilerButtons[i]))
+						if (button.equals(buttonsProfiler[i]))
 						{							
 							plotter.setPlotEnabled(i, button.isSelected());
 							refresh();

@@ -30,7 +30,7 @@ public class Plotter extends JPanel
 	public static final Color COLOR_LAM_RGB = new Color(192, 255, 192);
 	public static final Color COLOR_LAM_SAT_EXTRAP = Color.white;
 		
-	public static final Color[] colors = {Color.black, Color.black, COLOR_SRED,
+	public static final Color[] colors = {Color.black, Color.black, Color.black, COLOR_SRED,
 									      COLOR_SGREEN, COLOR_SBLUE, COLOR_LINRED,
 									      COLOR_LINGREEN, COLOR_LINBLUE, COLOR_X,
 									      COLOR_Y, COLOR_Z, COLOR_LAM_XYZ,
@@ -70,7 +70,7 @@ public class Plotter extends JPanel
 	
 	public double[] vStep = new double[GUI.profilerParams.length]; // In screen pixels
 	public double[] vOffset = new double[GUI.profilerParams.length]; // In screen pixels
-	public boolean[] enabledPlots = new boolean[GUI.profilerParams.length]; // In screen pixels
+	public boolean[] plotEnabled = new boolean[GUI.profilerParams.length]; // In screen pixels
 	public Insets insets = new Insets(2,4,2,4);	
 	
 	public Plotter(GUI parent) 
@@ -146,7 +146,7 @@ public class Plotter extends JPanel
 	
 	public void setPlotEnabled(int param, boolean enabled)
 	{
-		enabledPlots[param] = enabled;
+		plotEnabled[param] = enabled;
 	}
 	
 	public void extrapolate(Point p1, Point p2, int imgWidth, int imgHeight)
@@ -276,7 +276,9 @@ public class Plotter extends JPanel
 		for (int i = 0; i < n; i++)
 		{
 			points[i] = Calc.add(r, Calc.scale(m, i * dt));
-			data[0][i] = points[i][0];
+			data[GUI.PF_X_COORD][i] = points[i][0];
+			data[GUI.PF_Y_COORD][i] = points[i][1];
+			data[GUI.PF_T_COORD][i] = 1.0 * i * pixelsPerSample;
 		}
 		
 		System.out.print ("r = ");
@@ -447,7 +449,7 @@ public class Plotter extends JPanel
 			
 			for (int i = 0; i < data.length; i++)
 			{
-				if (enabledPlots[i])
+				if (plotEnabled[i])
 				{						
 					g.setColor(colors[i]);
 					int lastx = x[0];
