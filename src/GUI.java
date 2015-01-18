@@ -1419,15 +1419,18 @@ public class GUI extends JFrame
 				if (plotter.enabledPlots[i])
 					counter++;
 			
+			System.out.println("Count = " + counter);
+			
 			if (counter > tableCols)
 				setTableColCount(counter);
 			
 			// Store selected params
 			
 			int params[] = new int[counter];
-			counter = 0;
+			params[0] = 0;
+			counter = 1;
 			
-			for (int i = 0; i < params.length; i++)
+			for (int i = 1; i < profilerParams.length; i++)
 				if (plotter.enabledPlots[i])
 					params[counter++] = i;
 			
@@ -1439,12 +1442,14 @@ public class GUI extends JFrame
 			
 			// Iterate through data
 			
+			System.out.println(plotter.data[0].length);
+			
 			for (int i = 0; i < plotter.data[0].length; i++)
 			{
 				tableSet("" + plotter.data[0][i], 0);
 				
-				for (int j = 1; j < params.length; i++)
-					tableSet("" + plotter.data[params[j]], i);
+				for (int j = 1; j < params.length; j++)
+					tableSet("" + plotter.data[params[j]][i], j);
 				
 				tableIncrement();				
 			}			

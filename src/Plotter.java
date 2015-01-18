@@ -276,6 +276,7 @@ public class Plotter extends JPanel
 		for (int i = 0; i < n; i++)
 		{
 			points[i] = Calc.add(r, Calc.scale(m, i * dt));
+			data[0][i] = points[i][0];
 		}
 		
 		System.out.print ("r = ");
