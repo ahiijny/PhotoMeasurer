@@ -27,6 +27,7 @@ import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JFileChooser;
+import javax.swing.JFormattedTextField;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
@@ -36,11 +37,14 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
+import javax.swing.JSpinner;
 import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
+import javax.swing.SpinnerModel;
+import javax.swing.SpinnerNumberModel;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -73,6 +77,7 @@ public class GUI extends JFrame
 	public static final int PRIMER = 2;
 	public static final int RULER = 3;
 	public static final int COLOR = 4;
+	public static final int PROFILER = 5;
 	
 	// Image Spec Labels
 	
@@ -104,21 +109,35 @@ public class GUI extends JFrame
 	public static final int RU_LENGTH = 0;
 	public static final int RU_SCALE = 1;
 	
+	// Profiler Labels
+	
+	public static final int PF_X1 = 0;
+	public static final int PF_Y1 = 1;
+	public static final int PF_X2 = 2;
+	public static final int PF_Y2 = 3;
+	
 	// Measurement Panel Fields
 		
 	public static final Font fontCourier = new Font("Courier New", Font.PLAIN, 12);
 	public static final Font fontHeader = new Font("Verdana", Font.PLAIN, 12);
 	
-	public static final int[] pointCount = {0, 3, 2, 2, 1};
+	public static final int[] pointCount = {0, 3, 2, 2, 1, 2};
 	public static final String[] labelsSpecs = {"Make", "Model", "Width", "Height", "Date", "Time", "Shutter(s)", "f/D", "Focus(mm)", "ISO", "Exp Bias(EV)", "WB red", "WB green", "WB blue"};
 	public static final String[] labelsAngle = {"Degrees"};
 	public static final String[] labelsPrimer = {"Pixels/length"};
 	public static final String[] labelsRuler = {"Length", "Pixels/length"};
+	public static final String[] labelsProfilerSpinner = {"x1", "y1", "x2", "y2"};
 	
+	public static final String[] profilerParams = {"sRed", "sGreen", "sBlue", "linRed", "linGreen", "linBlue", "X", "Y", "Z"};
+		
 	public JTextField[] fieldsImSpecs = new JTextField[labelsSpecs.length];
 	public JTextField[] fieldsAngle = new JTextField[labelsAngle.length];
 	public JTextField[] fieldsPrimer = new JTextField[labelsPrimer.length];
 	public JTextField[] fieldsRuler = new JTextField[labelsRuler.length];
+	public JSpinner[] spinnersProfiler = new JSpinner[4];
+	
+	public JButton[] profilerButtons = new JButton[profilerParams.length];
+
 	
 	// Color Measurement Panel Fields
 	
@@ -136,12 +155,12 @@ public class GUI extends JFrame
 
 	public JSplitPane content;
 	public JPanel paneCenter, paneLeft, paneRight, paneBottom, paneTop, paneSpecWrapper;
-	public JPanel[] panesMeasurement = new JPanel[5];
+	public JPanel[] panesMeasurement = new JPanel[pointCount.length];
 	public ImagePanel ip;
 	
 	// Control Panel
 	
-	public JButton[] buttonsMeasure = new JButton[5];
+	public JButton[] buttonsMeasure = new JButton[pointCount.length];
 	public JToggleButton buttonLog;
 	public JButton buttonMove;	
 	public int mode = 0;
@@ -159,7 +178,7 @@ public class GUI extends JFrame
 		
 	// Buttons
 		
-	public JButton buttonTableIndex, buttonTableSize, buttonLengthScale;
+	public JButton buttonTableIndex, buttonTableSize, buttonLengthScale, buttonProfile;
 	
 	// Other Stuff
 	
@@ -169,7 +188,7 @@ public class GUI extends JFrame
 	public int xorFront = Color.black.getRGB();
 	
 	public int tableIndex = 0;
-	public int tableSize = 128;
+	public int tableRows = 128;
 	public int tableCols = 10;
 		
 	public boolean movingMode = false;
@@ -263,6 +282,8 @@ public class GUI extends JFrame
 		button.addActionListener (menuListener);
 		data.add(button);
 		
+		data.add(new JSeparator());
+		
 		button = new JMenuItem ("Log spectrum XYZ");
 		button.setMnemonic('z');
 		button.addActionListener (menuListener);
@@ -332,7 +353,7 @@ public class GUI extends JFrame
 	{
 		// Init Measurement Panels
 		
-		for (int i = 0; i < 5; i++)
+		for (int i = 0; i < pointCount.length; i++)
 			panesMeasurement[i] = getMeasurementPanel(i);
 		
 		// Create content panes
@@ -341,16 +362,18 @@ public class GUI extends JFrame
 		paneLeft = createLeftPanel();
 		paneRight = createRightPanel();
 		paneBottom = createBottomPanel();
+		paneTop = createTopPanel();
 		
 		// Add panels to main pane and left pane
 		
 		JPanel main = new JPanel(new BorderLayout());
 		JPanel left = new JPanel(new BorderLayout());
 		
-		main.add(paneCenter, BorderLayout.CENTER);
-		left.add(paneLeft, BorderLayout.WEST);
+		main.add(paneCenter, BorderLayout.CENTER);		
 		main.add(paneRight, BorderLayout.EAST);
 		main.add(paneBottom, BorderLayout.SOUTH);
+		main.add(paneTop, BorderLayout.NORTH);
+		left.add(paneLeft, BorderLayout.WEST);
 		
 		// Add panes to split pane
 		
@@ -504,7 +527,7 @@ public class GUI extends JFrame
 		
 		// Table
 			
-		table = new JTable(tableSize, tableCols);		
+		table = new JTable(tableRows, tableCols);		
 		table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF); 
 		tableWrapper = new JScrollPane(table, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
 		tableWrapper.setPreferredSize(new Dimension(170, 1));
@@ -518,6 +541,11 @@ public class GUI extends JFrame
 		refreshLeftPanel();
 		
 		return data;
+	}
+	
+	private JPanel createTopPanel()
+	{
+		return new JPanel();
 	}
 	
 	private JPanel getControlPanel()
@@ -561,6 +589,10 @@ public class GUI extends JFrame
 		buttonsMeasure[COLOR] = new JButton("Color");
 		buttonsMeasure[COLOR].addActionListener(myActionListener);
 		gridBagAdd(control, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, buttonsMeasure[COLOR]);
+		
+		buttonsMeasure[PROFILER] = new JButton("Profiler");
+		buttonsMeasure[PROFILER].addActionListener(myActionListener);
+		gridBagAdd(control, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, buttonsMeasure[PROFILER]);
 		
 		gridBagAdd(control, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, new JLabel("  "));
 		
@@ -629,6 +661,8 @@ public class GUI extends JFrame
 			return getRulerPanel();
 		else if (panelMode == COLOR)
 			return getColorPanel();
+		else if (panelMode == PROFILER)
+			return getProfilerPanel();
 		else
 			return new JPanel();
 	}
@@ -739,6 +773,8 @@ public class GUI extends JFrame
 	
 	private JPanel getColorPanel()
 	{
+		// Color Panel
+		
 		JPanel color = new JPanel(new GridBagLayout());
 		GridBagConstraints c = new GridBagConstraints();
 		c.gridx = c.gridy = 0;
@@ -884,9 +920,62 @@ public class GUI extends JFrame
 		return color;
 	}
 	
+	private JPanel getProfilerPanel()
+	{
+		// Profiler panel
+		
+		JPanel profiler = new JPanel(new GridBagLayout());
+		GridBagConstraints c = new GridBagConstraints();
+		c.gridx = c.gridy = 0;
+		c.insets = new Insets(1,4,1,4);
+		c.fill = GridBagConstraints.HORIZONTAL;
+		int cols = 7;
+		
+		// Initialize components	
+						
+		JLabel[] labels = new JLabel[4];		
+		
+		for (int i = 0; i < spinnersProfiler.length; i++)
+		{
+			SpinnerModel model = new SpinnerNumberModel(0, Integer.MIN_VALUE, Integer.MAX_VALUE, 1);
+			spinnersProfiler[i] = new JSpinner(model);
+			JFormattedTextField ftf = ((JSpinner.DefaultEditor)spinnersProfiler[i].getEditor()).getTextField();
+			ftf.setColumns(cols);
+		}
+		
+		for (int i = 0; i < labelsProfilerSpinner.length; i++)
+			labels[i] = new JLabel(labelsProfilerSpinner[i]);
+		
+		for (int i = 0; i < profilerParams.length; i++)
+			profilerButtons[i] = new JButton(profilerParams[i]);	
+		
+		// Add line specification fields
+		
+		c.weightx = 0;
+		gridBagAdd(profiler, c, 0, 0, 1, GridBagConstraints.FIRST_LINE_START, labels[PF_X1]);
+		gridBagAdd(profiler, c, 2, 0, 1, GridBagConstraints.FIRST_LINE_START, labels[PF_Y1]);
+		gridBagAdd(profiler, c, 0, 1, 1, GridBagConstraints.FIRST_LINE_START, labels[PF_X2]);
+		gridBagAdd(profiler, c, 2, 1, 1, GridBagConstraints.FIRST_LINE_START, labels[PF_Y2]);
+		
+		c.weightx = 0;
+		gridBagAdd(profiler, c, 1, 0, 1, GridBagConstraints.FIRST_LINE_START, spinnersProfiler[PF_X1]);
+		gridBagAdd(profiler, c, 3, 0, 1, GridBagConstraints.FIRST_LINE_START, spinnersProfiler[PF_Y1]);
+		gridBagAdd(profiler, c, 1, 1, 1, GridBagConstraints.FIRST_LINE_START, spinnersProfiler[PF_X2]);
+		gridBagAdd(profiler, c, 3, 1, 1, GridBagConstraints.FIRST_LINE_START, spinnersProfiler[PF_Y2]);
+				
+		// Add set button
+		
+		buttonProfile = new JButton("Profile");
+		c.fill = GridBagConstraints.NONE;
+		gridBagAdd(profiler, c, 0, ++c.gridy, 4, GridBagConstraints.CENTER, buttonProfile);
+		c.fill = GridBagConstraints.HORIZONTAL;
+		
+		return profiler;
+	}
+	
 	public void clearTable()
 	{
-		DefaultTableModel dtm = new DefaultTableModel(tableSize, tableCols);
+		DefaultTableModel dtm = new DefaultTableModel(tableRows, tableCols);
 		table.setModel(dtm);
 		table.setEditingRow(0);
 		tableIndex = 0;
@@ -966,20 +1055,35 @@ public class GUI extends JFrame
 			double[] resultsxy = Calc.getPrimaryWavelengthFitxy(XYZ);
 			double[] resultsRGB = Calc.getPrimaryWavelengthInverseTrunc(rgb);
 			double[] resultsSatExtrap = Calc.getPrimaryWavelengthSatExtrap(XYZ);
+			
 			displayColor(color, rgb, XYZ, resultsXYZ, resultsxy, resultsRGB, resultsSatExtrap);
 			
-			tableSet("" + rgb[0], 0);
-			tableSet("" + rgb[1], 1);
-			tableSet("" + rgb[2], 2);
-			tableSet("" + XYZ[0], 3);
-			tableSet("" + XYZ[1], 4);
-			tableSet("" + XYZ[2], 5);
-			tableSet("" + (int)resultsXYZ[0], 6);
-			tableSet("" + (int)resultsxy[0], 7);
-			tableSet("" + (int)resultsRGB[0], 8);
-			tableSet("" + (int)resultsSatExtrap[0], 9);
-			tableIncrement();
-		}		
+			if (isLogging)
+			{
+				tableSet("" + rgb[0], 0);
+				tableSet("" + rgb[1], 1);
+				tableSet("" + rgb[2], 2);
+				tableSet("" + XYZ[0], 3);
+				tableSet("" + XYZ[1], 4);
+				tableSet("" + XYZ[2], 5);
+				tableSet("" + (int)resultsXYZ[0], 6);
+				tableSet("" + (int)resultsxy[0], 7);
+				tableSet("" + (int)resultsRGB[0], 8);
+				tableSet("" + (int)resultsSatExtrap[0], 9);
+				tableIncrement();
+			}
+		}	
+		else if (mode == PROFILER)
+		{
+			// Ensure that the first point is to the left of the right point
+			if (ip.vertices[0].x > ip.vertices[1].x)
+			{
+				Point temp = new Point(ip.vertices[0]);
+				ip.vertices[0].setLocation(ip.vertices[1]);
+				ip.vertices[1].setLocation(ip.vertices[0]);
+			}
+			displayProfiler(ip.vertices[0], ip.vertices[1]);
+		}
 	}
 	
 	/** Tries to set the specified zoom. If invalid, sets the JComboBox
@@ -1044,7 +1148,7 @@ public class GUI extends JFrame
 		try
 		{
 			int size = Integer.parseInt(fieldTableSize.getText());
-			setTableSize(size);
+			setTableRowCount(size);
 		}
 		catch(Exception e)
 		{			
@@ -1052,13 +1156,35 @@ public class GUI extends JFrame
 		refreshLeftPanel();		
 	}
 	
-	public void setTableSize(int size)
+	public void inputProfileLine()
 	{
-		if (size >= 0)
+		try
 		{
-			tableSize = size;
+		}
+		catch(Exception e)
+		{			
+		}
+		refreshRightPanel();
+	}
+	
+	public void setTableRowCount(int rows)
+	{
+		if (rows > 0)
+		{
+			tableRows = rows;
 			DefaultTableModel dtm = (DefaultTableModel)table.getModel();
-			dtm.setRowCount(size);
+			dtm.setRowCount(rows);
+			table.setModel(dtm);
+		}
+	}
+	
+	public void setTableColCount(int cols)
+	{
+		if (cols >= 0)
+		{
+			tableCols = cols;
+			DefaultTableModel dtm = (DefaultTableModel)table.getModel();
+			dtm.setColumnCount(cols);
 			table.setModel(dtm);
 		}
 	}
@@ -1079,7 +1205,7 @@ public class GUI extends JFrame
 	
 	public void setTableIndex(int index)
 	{
-		if (index >= 0 && index < tableSize)
+		if (index >= 0 && index < tableRows)
 			tableIndex = index;
 	}
 	
@@ -1399,8 +1525,8 @@ public class GUI extends JFrame
 	{
 		table.getModel().setValueAt(value + "", tableIndex, 0);
 		tableIndex++;
-		if (tableIndex >= tableSize)
-			setTableSize(2 * tableSize);
+		if (tableIndex >= tableRows)
+			setTableRowCount(2 * tableRows);
 		refreshLeftPanel();
 	}
 	
@@ -1419,8 +1545,8 @@ public class GUI extends JFrame
 	public void tableIncrement()
 	{		
 		tableIndex++;
-		if (tableIndex >= tableSize)
-			setTableSize(2 * tableSize);
+		if (tableIndex >= tableRows)
+			setTableRowCount(2 * tableRows);
 		refreshLeftPanel();
 	}
 	
@@ -1502,6 +1628,14 @@ public class GUI extends JFrame
     	fieldLambdaSatExtrap[1].setText(Calc.precise8.format(resultsSatExtrap[1]));
 	}
 	
+	public void displayProfiler(Point p1, Point p2)
+	{
+		spinnersProfiler[PF_X1].setValue(p1.x);
+		spinnersProfiler[PF_Y1].setValue(p1.y);
+		spinnersProfiler[PF_X2].setValue(p2.x);
+		spinnersProfiler[PF_Y2].setValue(p2.y);
+	}
+	
 	public void refresh()
 	{
 		refreshRightPanel();
@@ -1541,12 +1675,19 @@ public class GUI extends JFrame
 			fieldsPrimer[PR_SCALE].setText(Calc.precise12.format(ip.pixelsPerMM));
 		else if (mode == RULER)
 			fieldsRuler[RU_SCALE].setText(Calc.precise12.format(ip.pixelsPerMM));
+		else if (mode == PROFILER)
+		{
+			spinnersProfiler[PF_X1].setValue(ip.vertices[0].x);
+			spinnersProfiler[PF_Y1].setValue(ip.vertices[0].y);
+			spinnersProfiler[PF_X2].setValue(ip.vertices[1].x);
+			spinnersProfiler[PF_Y2].setValue(ip.vertices[1].y);
+		}
 	}
 	
 	public void refreshLeftPanel()
 	{
 		fieldTableIndex.setText("" + tableIndex);
-		fieldTableSize.setText("" + tableSize);
+		fieldTableSize.setText("" + tableRows);
 	}
 	
 	private class MyPropertyChangeListener implements PropertyChangeListener
@@ -1603,6 +1744,11 @@ public class GUI extends JFrame
 				else if (button.getText().equals("Color"))
 				{
 					setMeasuringMode(COLOR);
+				}				
+				else if (button.getText().equals("Profiler"))
+				{
+					writeStatus("Select the line along which to profile.");
+					setMeasuringMode(PROFILER);
 				}
 				else if (button.equals(buttonLengthScale))
 				{
@@ -1615,6 +1761,10 @@ public class GUI extends JFrame
 				else if (button.equals(buttonTableSize))
 				{
 					inputTableSize();
+				}
+				else if (button.equals(buttonProfile))
+				{
+					inputProfileLine();
 				}
 			}
 			else if (parent instanceof JToggleButton)
@@ -1790,10 +1940,10 @@ public class GUI extends JFrame
 					String str = "Angle[1]: {angle in degrees}\n";
 					str += "Length[1]: {length}\n";
 					str += "Color[10]: {R, G, B, X, Y, Z, \u03BB (XYZ fit), \u03BB (xy fit), \u03BB (RGB fit), \u03BB (SatExrap fit)}\n";
-					str += "Spectrum XYZ [472][4]: {wavelength(nm), X, Y, Z}";
-					str += "Spectrum xyY [472][4]: {wavelength(nm), x, y, Y}";
-					str += "Spectrum sRGB[472][4]: {wavelength(nm), R[0..1], G[0..1], B[0..1]}";
-					str += "Spectrum RGB_lin[472][4]: {wavelength(nm), R[0..1], G[0..1], B[0..1]}";
+					str += "Spectrum XYZ [472][4]: {wavelength(nm), X, Y, Z}\n";
+					str += "Spectrum xyY [472][4]: {wavelength(nm), x, y, Y}\n";
+					str += "Spectrum sRGB[472][4]: {wavelength(nm), R[0..1], G[0..1], B[0..1]}\n";
+					str += "Spectrum RGB_lin[472][4]: {wavelength(nm), R[0..1], G[0..1], B[0..1]}\n";
 					JOptionPane.showMessageDialog(GUI.this, str, "Data Format", JOptionPane.PLAIN_MESSAGE);			
 				}
 				else if (name.equals("Controls"))

@@ -17,7 +17,7 @@ public class ImagePanel extends JPanel
 	private GUI parent;
 	private Object interpolationMethod = RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR;
 	
-	private BufferedImage img = null;
+	public BufferedImage img = null;
 	public MetadataManager mm;
 	
 	private Point offset = new Point();
