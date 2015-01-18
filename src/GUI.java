@@ -251,11 +251,15 @@ public class GUI extends JFrame
 		
 		button = new JMenuItem ("Log image metadata");
 		button.setMnemonic('m');
+		button.setAccelerator(KeyStroke.getKeyStroke (
+				KeyEvent.VK_M, menuKeyMask));
 		button.addActionListener (menuListener);
 		data.add(button);
 		
 		button = new JMenuItem ("Log image name");
 		button.setMnemonic('n');
+		button.setAccelerator(KeyStroke.getKeyStroke (
+				KeyEvent.VK_N, menuKeyMask));
 		button.addActionListener (menuListener);
 		data.add(button);
 		
@@ -274,7 +278,7 @@ public class GUI extends JFrame
 		button.addActionListener (menuListener);
 		data.add(button);
 		
-		button = new JMenuItem ("Log spectrum RGB");
+		button = new JMenuItem ("Log spectrum sRGB");
 		button.setMnemonic('r');
 		button.addActionListener (menuListener);
 		data.add(button);
@@ -664,7 +668,7 @@ public class GUI extends JFrame
 		c.insets = new Insets(2,4,2,4);
 		c.gridx = c.gridy = 0;
 		c.fill = GridBagConstraints.HORIZONTAL;
-		int cols = 13;
+		int cols = 12;
 		
 		// Ruler data
 		
@@ -697,7 +701,7 @@ public class GUI extends JFrame
 		c.insets = new Insets(2,4,2,4);
 		c.gridx = c.gridy = 0;
 		c.fill = GridBagConstraints.HORIZONTAL;
-		int cols = 13;
+		int cols = 12;
 		
 		// Primer data
 		
@@ -1076,6 +1080,9 @@ public class GUI extends JFrame
 	{
 		try
 		{
+			if (ip.mm.model == null)
+				throw new Exception();
+			
 			tableSet("" + ip.mm.model, 0);
 			tableSet("" + ip.mm.make, 1);
 			tableIncrement();
@@ -1126,27 +1133,87 @@ public class GUI extends JFrame
 	
 	public void logName()
 	{
-		
+		try
+		{
+			tableSet(ip.mm.file.getName(), 0);
+			tableIncrement();
+		}
+		catch (Exception e)
+		{				
+		}
 	}
 	
 	public void log_cmf_XYZ()
 	{
+		tableSet("lambda(nm)", 0);
+		tableSet("X", 1);
+		tableSet("Y", 2);
+		tableSet("Z", 3);
+		tableIncrement();
 		
+		for (int i = 0; i < Calc.cmf_XYZ.length; i++)
+		{
+			tableSet("" + Calc.indexToNM(i), 0);
+			tableSet("" + Calc.cmf_XYZ[i][0], 1);
+			tableSet("" + Calc.cmf_XYZ[i][1], 2);
+			tableSet("" + Calc.cmf_XYZ[i][2], 3);
+			tableIncrement();
+		}
 	}
 	
 	public void log_cmf_xyY()
 	{
+		tableSet("lambda(nm)", 0);
+		tableSet("x", 1);
+		tableSet("y", 2);
+		tableSet("Y", 3);
+		tableIncrement();
 		
+		for (int i = 0; i < Calc.cmf_xy.length; i++)
+		{
+			tableSet("" + Calc.indexToNM(i), 0);
+			tableSet("" + Calc.cmf_xy[i][0], 1);
+			tableSet("" + Calc.cmf_xy[i][1], 2);
+			tableSet("" + Calc.cmf_XYZ[i][1], 3);
+			tableIncrement();
+		}	
 	}
 	
 	public void log_cmf_RGB_lin()
 	{
+		tableSet("lambda(nm)", 0);
+		tableSet("R_lin", 1);
+		tableSet("G_lin", 2);
+		tableSet("B_lin", 3);
+		tableIncrement();
 		
+		for (int i = 0; i < Calc.cmf_rgb_lin.length; i++)
+		{
+			tableSet("" + Calc.indexToNM(i), 0);
+			tableSet("" + Calc.cmf_rgb_lin[i][0], 1);
+			tableSet("" + Calc.cmf_rgb_lin[i][1], 2);
+			tableSet("" + Calc.cmf_rgb_lin[i][2], 3);
+			tableIncrement();
+		}		
 	}
 	
-	public void log_cmf_RGB()
+	public void log_cmf_sRGB()
 	{
+		tableSet("lambda(nm)", 0);
+		tableSet("sR", 1);
+		tableSet("sG", 2);
+		tableSet("sB", 3);
+		tableIncrement();
 		
+		for (int i = 0; i < Calc.cmf_rgb_lin.length; i++)
+		{
+			double[] srgb = Calc.sRGBgamma(Calc.cmf_rgb_lin[i]);
+			tableSet("" + Calc.indexToNM(i), 0);
+			tableSet("" + srgb[0], 1);
+			tableSet("" + srgb[1], 2);
+			tableSet("" + srgb[2], 3);
+			tableIncrement();
+		}	
 	}		
 	
 	/** Reads image from file and loads it into ImagePanel. 
@@ -1640,8 +1707,12 @@ public class GUI extends JFrame
 			{
 				if (e.getKeyCode() == KeyEvent.VK_SHIFT)				
 					setMovingMode(true);	
-				else if (e.getKeyCode() == KeyEvent.VK_DELETE)				
-					clearRow(table.getSelectedRow());				
+				else if (e.getKeyCode() == KeyEvent.VK_DELETE)
+				{
+					int[] rows = table.getSelectedRows();
+					for (int i = 0; i < rows.length; i++)
+						clearRow(rows[i]);
+				}
 			} 
 			else if (e.getID() == KeyEvent.KEY_RELEASED) 
 			{
@@ -1694,9 +1765,9 @@ public class GUI extends JFrame
 				{
 					log_cmf_RGB_lin();
 				}
-				else if (name.equals("Log spectrum RGB"))
+				else if (name.equals("Log spectrum sRGB"))
 				{
-					log_cmf_RGB();
+					log_cmf_sRGB();
 				}
 				else if (name.equals("Jump to Origin"))
 				{
@@ -1711,14 +1782,18 @@ public class GUI extends JFrame
 				{
 					String str = "Angle[1]: {angle in degrees}\n";
 					str += "Length[1]: {length}\n";
-					str += "Color[10]: {R, G, B, X, Y, Z, \u03BB (XYZ fit), \u03BB (xy fit), \u03BB (RGB fit), \u03BB (SatExrap fit)}\n";					
+					str += "Color[10]: {R, G, B, X, Y, Z, \u03BB (XYZ fit), \u03BB (xy fit), \u03BB (RGB fit), \u03BB (SatExrap fit)}\n";
+					str += "Spectrum XYZ [472][4]: {wavelength(nm), X, Y, Z}";
+					str += "Spectrum xyY [472][4]: {wavelength(nm), x, y, Y}";
+					str += "Spectrum sRGB[472][4]: {wavelength(nm), R[0..1], G[0..1], B[0..1]}";
+					str += "Spectrum RGB_lin[472][4]: {wavelength(nm), R[0..1], G[0..1], B[0..1]}";
 					JOptionPane.showMessageDialog(GUI.this, str, "Data Format", JOptionPane.PLAIN_MESSAGE);			
 				}
 				else if (name.equals("Controls"))
 				{
 					String str = "Shift + drag: move image\n";
 					str += "Scroll: zoom\n";
-					str += "Delete: clear selected row\n";
+					str += "Delete: clear selected rows\n";
 							
 					JOptionPane.showMessageDialog(GUI.this, str, "Shortcut Keys", JOptionPane.PLAIN_MESSAGE);			
 				}
@@ -1732,3 +1807,4 @@ public class GUI extends JFrame
 		}
 	}
 }
+
