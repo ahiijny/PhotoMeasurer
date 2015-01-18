@@ -524,49 +524,56 @@ public class GUI extends JFrame
 	{
 		// Control panel
 		
-		JPanel control = new JPanel();		
-		control.setLayout(new BoxLayout(control, BoxLayout.PAGE_AXIS));
+		JPanel control = new JPanel(new GridBagLayout());
+		GridBagConstraints c = new GridBagConstraints();
+		c.gridx = c.gridy = 0;
+		c.insets = new Insets(0,2,0,2);
+		c.fill = GridBagConstraints.HORIZONTAL;
+		c.anchor = GridBagConstraints.NORTH;
 		
 		// Add buttons to control panel
 
 		JButton button = new JButton("Load");
 		button.addActionListener(myActionListener);
-		control.add(button);	
+		gridBagAdd(control, c, 0, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, button);
 		
-		control.add(new JLabel("  "));
+		gridBagAdd(control, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, new JLabel("  "));
 		
 		buttonLog = new JToggleButton("Log");
 		buttonLog.setSelected(true);
 		buttonLog.addActionListener(myActionListener);
-		control.add(buttonLog);
+		gridBagAdd(control, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, buttonLog);
 		
-		control.add(new JLabel("  "));
+		gridBagAdd(control, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, new JLabel("  "));
 
 		buttonsMeasure[ANGLE] = new JButton("Angle");
 		buttonsMeasure[ANGLE].addActionListener(myActionListener);
-		control.add(buttonsMeasure[ANGLE]);
+		gridBagAdd(control, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, buttonsMeasure[ANGLE]);
 
 		buttonsMeasure[PRIMER] = new JButton("Primer");
 		buttonsMeasure[PRIMER].addActionListener(myActionListener);
-		control.add(buttonsMeasure[PRIMER]);
+		gridBagAdd(control, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, buttonsMeasure[PRIMER]);
 
 		buttonsMeasure[RULER] = new JButton("Ruler");
 		buttonsMeasure[RULER].addActionListener(myActionListener);
-		control.add(buttonsMeasure[RULER]);
+		gridBagAdd(control, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, buttonsMeasure[RULER]);
 					
 		buttonsMeasure[COLOR] = new JButton("Color");
 		buttonsMeasure[COLOR].addActionListener(myActionListener);
-		control.add(buttonsMeasure[COLOR]);
+		gridBagAdd(control, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, buttonsMeasure[COLOR]);
 		
-		control.add(new JLabel("  "));
+		gridBagAdd(control, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, new JLabel("  "));
 		
 		buttonMove = new JButton("Move");
 		buttonMove.addActionListener(myActionListener);
-		control.add(buttonMove);
+		gridBagAdd(control, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, buttonMove);
 		
 		button = new JButton("Clear");
 		button.addActionListener(myActionListener);
-		control.add(button);
+		c.weighty = 1;
+		gridBagAdd(control, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, button);
+		
+		// Wrapper
 		
 		return control;
 	}
@@ -577,7 +584,7 @@ public class GUI extends JFrame
 		
 		JPanel specs = new JPanel(new GridBagLayout());
 		GridBagConstraints c = new GridBagConstraints();
-		c.insets = new Insets(1,2,1,2);
+		c.insets = new Insets(1,4,1,4);
 		c.gridx = c.gridy = 0;
 		c.fill = GridBagConstraints.HORIZONTAL;
 		int cols = 14;
@@ -735,7 +742,7 @@ public class GUI extends JFrame
 		JPanel color = new JPanel(new GridBagLayout());
 		GridBagConstraints c = new GridBagConstraints();
 		c.gridx = c.gridy = 0;
-		c.insets = new Insets(1,2,1,2);
+		c.insets = new Insets(1,4,1,4);
 		c.fill = GridBagConstraints.HORIZONTAL;
 		int cols = 11;
 				
