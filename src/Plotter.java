@@ -71,7 +71,8 @@ public class Plotter extends JPanel
 	public double[] vStep = new double[GUI.profilerParams.length]; // In screen pixels
 	public double[] vOffset = new double[GUI.profilerParams.length]; // In screen pixels
 	public boolean[] plotEnabled = new boolean[GUI.profilerParams.length]; // In screen pixels
-	public Insets insets = new Insets(2,4,2,4);	
+	public Insets insets = new Insets(2,4,2,4);
+	public Dimension plotSize = new Dimension(0, 0);
 	
 	public Plotter(GUI parent) 
 	{
@@ -83,7 +84,7 @@ public class Plotter extends JPanel
 	
 	public void paintComponent(Graphics g)
 	{
-		super.paintComponent(g);
+		super.paintComponent(g);;
 		
 		Graphics2D g2d = (Graphics2D)g;
 		AffineTransform at = AffineTransform.getScaleInstance(1, -1);
@@ -91,12 +92,15 @@ public class Plotter extends JPanel
 		g2d.transform(at);
 		
 		if (!editLock)
-			plotData(g2d);
+			plotProfile(g2d);
 	}
 	
 	public void refresh()
 	{
-		sample();
+		if (parent.mode == GUI.PROFILER)
+			sampleProfile();
+		else if (parent.mode == GUI.AREA)
+			sampleArea();
 		repaint();
 	}
 		
@@ -120,7 +124,7 @@ public class Plotter extends JPanel
 		// Sample if necessary
 		
 		if (sample)
-			sample();
+			sampleProfile();
 	}
 	
 	public int getDeltaX()
@@ -259,7 +263,12 @@ public class Plotter extends JPanel
 		return (int)(length / pixelsPerSample + 0.5);
 	}
 	
-	public void sample()
+	public void sampleArea()
+	{
+		
+	}
+	
+	public void sampleProfile()
 	{
 		// Set up
 		
@@ -321,15 +330,22 @@ public class Plotter extends JPanel
 		editLock = false;
 	}
 	
+	public void recalcPlotSize()
+	{
+		int width = getWidth() - insets.left - insets.right;
+		int height = getHeight() - insets.top - insets.bottom;
+		plotSize = new Dimension(width, height);
+	}
+	
 	public void recalcHStep(int n)
 	{
-		double length = getWidth() - insets.left - insets.right;
+		double length = plotSize.width;
 		hStep = length / n;		
 	}
 	
 	public void recalcVStep()
 	{
-		double height = getHeight() - insets.top - insets.bottom;
+		double height = plotSize.height;
 		double stepRGB = height / (maxRGB - minRGB);
 		double stepXYZ = height / (maxXYZ - minXYZ);
 		double stepLambda = height / (maxLambda - minLambda);
@@ -435,7 +451,12 @@ public class Plotter extends JPanel
 		return results[0];		
 	}
 	
-	public void plotData (Graphics2D g)
+	public void plotHistogram(Graphics2D g)
+	{
+	
+	}
+	
+	public void plotProfile (Graphics2D g)
 	{
 		int n = data[0].length;
 		
@@ -482,6 +503,7 @@ public class Plotter extends JPanel
 	{
 		public void componentResized(ComponentEvent e) 
 		{
+			recalcPlotSize();
 			recalcHStep(data[0].length);
 			recalcVStep();
 	        refresh();           

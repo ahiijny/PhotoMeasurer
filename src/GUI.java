@@ -81,6 +81,7 @@ public class GUI extends JFrame
 	public static final int RULER = 3;
 	public static final int COLOR = 4;
 	public static final int PROFILER = 5;
+	public static final int AREA = 6;
 	
 	// Image Spec Labels
 	
@@ -144,7 +145,7 @@ public class GUI extends JFrame
 	public static final Font fontCourier = new Font("Courier New", Font.PLAIN, 12);
 	public static final Font fontHeader = new Font("Verdana", Font.PLAIN, 12);
 	
-	public static final int[] pointCount = {0, 3, 2, 2, 1, 2};
+	public static final int[] measurePointCount = {0, 3, 2, 2, 1, 2, -1};
 	public static final String[] labelsSpecs = {"Make", "Model", "Width", "Height", "Date", "Time", "Shutter(s)", "f/D", "Focus(mm)", "ISO", "Exp Bias(EV)", "WB red", "WB green", "WB blue"};
 	public static final String[] labelsAngle = {"Degrees"};
 	public static final String[] labelsPrimer = {"Pixels/length"};
@@ -183,12 +184,12 @@ public class GUI extends JFrame
 
 	public JSplitPane content, paneCenter;
 	public JPanel paneLeft, paneRight, paneBottom, paneTop, paneSpecWrapper;
-	public JPanel[] panesMeasurement = new JPanel[pointCount.length];
+	public JPanel[] panesMeasurement = new JPanel[measurePointCount.length];
 	public ImagePanel ip;
 	
 	// Control Panel
 	
-	public JButton[] buttonsMeasure = new JButton[pointCount.length];
+	public JButton[] buttonsMeasure = new JButton[measurePointCount.length];
 	public JToggleButton buttonLog;
 	public JButton buttonMove;	
 	public int mode = 0;
@@ -212,8 +213,8 @@ public class GUI extends JFrame
 	
 	private File directory = new File(""); // initialize dir to current dir	
 			
-	public int xorBack = Color.white.getRGB();
-	public int xorFront = Color.black.getRGB();
+	public static int xorBack = Color.white.getRGB();
+	public static int xorFront = Color.black.getRGB();
 	
 	public int tableIndex = 0;
 	public int tableRows = 128;
@@ -399,7 +400,7 @@ public class GUI extends JFrame
 	{
 		// Init Measurement Panels
 		
-		for (int i = 0; i < pointCount.length; i++)
+		for (int i = 0; i < measurePointCount.length; i++)
 			panesMeasurement[i] = getMeasurementPanel(i);
 		
 		// Create content panes
@@ -649,6 +650,10 @@ public class GUI extends JFrame
 		buttonsMeasure[PROFILER].addActionListener(myActionListener);
 		gridBagAdd(control, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, buttonsMeasure[PROFILER]);
 		
+		buttonsMeasure[AREA] = new JButton("Area");
+		buttonsMeasure[AREA].addActionListener(myActionListener);
+		gridBagAdd(control, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, buttonsMeasure[AREA]);
+		
 		gridBagAdd(control, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, new JLabel("  "));
 		
 		buttonMove = new JButton("Move");
@@ -718,6 +723,8 @@ public class GUI extends JFrame
 			return getColorPanel();
 		else if (panelMode == PROFILER)
 			return getProfilerPanel();
+		else if (panelMode == AREA)
+			return getAreaPanel();
 		else
 			return new JPanel();
 	}
@@ -1095,6 +1102,11 @@ public class GUI extends JFrame
 		gridBagAdd(profiler, c, 0, ++c.gridy, 4, GridBagConstraints.CENTER, buttonLogProfiles);
 				
 		return profiler;
+	}
+	
+	private JPanel getAreaPanel()
+	{
+		return new JPanel();
 	}
 	
 	public void clearTable()
@@ -1766,17 +1778,8 @@ public class GUI extends JFrame
 		paneSpecWrapper.remove(panesMeasurement[oldMode]);
 		paneSpecWrapper.add(panesMeasurement[mode], BorderLayout.SOUTH);
 		refresh();
-	}
-	
-	private void updateMove(Point now)
-	{
-		int dx = now.x - ip.click.x;
-		int dy = now.y - ip.click.y;
-
-		ip.click = now;
-		ip.translateOffset(dx, dy);
-	}
-	
+	}	
+		
 	/** @param text	the string to be displayed in the status bar
 	 */
 	public void writeStatus(String text)
@@ -1851,12 +1854,7 @@ public class GUI extends JFrame
 	{
 		fieldsRuler[RU_LENGTH].setText(Calc.precise12.format(length));
 		fieldsRuler[RU_SCALE].setText(Calc.precise12.format(ip.pixelsPerMM));
-	}
-	
-	public Color getXORColor(Color color)
-	{
-		return new Color(xorBack^xorFront^color.getRGB());
-	}
+	}		
 	
 	public void displayColor(Color color, int[] rgb, double[] XYZ, double[] resultsXYZ, double[] resultsxy, double[] resultsRGB, double[] resultsSatExtrap)
 	{
@@ -2034,6 +2032,11 @@ public class GUI extends JFrame
 					writeStatus("Select the line along which to profile.");
 					setMeasuringMode(PROFILER);
 				}
+				else if (button.getText().equals("Area"))
+				{
+					writeStatus("Select an area. Drag mouse for curved edges. Click mouse for straight edges. Double click to end selection.");
+					setMeasuringMode(AREA);
+				}
 				else if (button.equals(buttonLengthScale))
 				{
 					inputLengthScale();
@@ -2161,46 +2164,21 @@ public class GUI extends JFrame
 	{
 		@Override
 		public void mousePressed (MouseEvent e)	
-		{
-			ip.click = e.getPoint();
-			
-			if (!movingMode) // Do not do anything if in moving mode
-			{
-				if (mode != NONE) // If in a measuring mode
-				{					
-					// Reset the measurement mode if necessary
-					
-					if (ip.vertexIndex >= pointCount[mode])
-						ip.vertexIndex = 0; 
-					
-					// Extract the coordinates of the mouse click
-										
-					ip.vertices[ip.vertexIndex] = ip.getImageCoordinates(e.getPoint());
-					ip.vertexIndex++;
-					
-					// Make the measurement if the required number of points are had
-					
-					if (ip.vertexIndex == pointCount[mode])
-						makeMeasurement(mode);
-				}
-			}			
+		{		
+			ip.mouseClick(e);
 		}
 
 		@Override
 		public void mouseDragged (MouseEvent e)
 		{	
-			Point now = e.getPoint();
-
-			if (movingMode) // if in moving mode
-				updateMove (now);
+			ip.mouseDragged(e);
 			repaint();			
 		}
 		
 		@Override
 		public void mouseMoved(MouseEvent e)
 		{
-			ip.mouse = e.getPoint();
-			ip.repaint();
+			ip.mouseMoved(e);
 			Point pt = ip.getImageCoordinates(e.getPoint());
 			positionLabel.setText(pt.x + "," + pt.y);			
 		}
@@ -2346,6 +2324,11 @@ public class GUI extends JFrame
 				}
 			}
 		}
+	}
+	
+	public static Color getXORColor(Color color)
+	{
+		return new Color(xorBack^xorFront^color.getRGB());
 	}
 }
 

@@ -2,8 +2,13 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.RenderingHints;
+import java.awt.Shape;
+import java.awt.event.MouseEvent;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.GeneralPath;
+import java.awt.geom.PathIterator;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -29,10 +34,16 @@ public class ImagePanel extends JPanel
 	public double pixelsPerMM = 1;
 	
 	public Point click = new Point();
-	public Point mouse = new Point();
+	public Point mouse = new Point();	
 	
 	public Color lineColor = Color.black;
 	public Color xorBack = Color.white;
+	
+	private GeneralPath select;
+	private Point selectStart;
+	private Point selectCurrent;	
+	private boolean selected = false;
+	private boolean selecting = false;
 	
 	/** Creates a new ImagePanel.
 	 * 
@@ -42,30 +53,7 @@ public class ImagePanel extends JPanel
 	{
 		parent = gui;
 	}
-
-	/** Draws the lines of a selection (e.g. angle, ruler)
-	 * if necessary.
-	 * 
-	 * @param g2	the Graphics context in which to paint
-	 */
-	private void drawLines(Graphics2D g2)
-	{		
-		boolean doneMeasuring = vertexIndex >= GUI.pointCount[parent.mode];
 		
-		g2.setColor(xorBack);
-		g2.setXORMode(lineColor);
-		
-		for (int i = 0; i < vertexIndex - 1; i++)
-			g2.drawLine(vertices[i].x, vertices[i].y, vertices[i+1].x, vertices[i+1].y);
-		
-		int index = vertexIndex - 1;
-		Point pt = getImageCoordinates(mouse);
-		if (index >= 0 && !doneMeasuring)
-			g2.drawLine(vertices[index].x, vertices[index].y, pt.x, pt.y);
-		
-		g2.setPaintMode();
-	}
-	
 	/** Converts screen coordinates to pixel coordinates on the image,
 	 * based on current zoom and offset.
 	 * 
@@ -207,6 +195,93 @@ public class ImagePanel extends JPanel
 		}		
 	}
 	
+	/** Updates the image panel according to the given mouse click event.
+	 */
+	public void mouseClick(MouseEvent e)
+	{
+		click = e.getPoint();
+		
+		if (!parent.movingMode) // Do not do anything if in moving mode
+		{
+			if (parent.mode != GUI.NONE) // If in a measuring mode
+			{			
+				// Reset the measurement mode if necessary
+				
+				if (vertexIndex >= GUI.measurePointCount[parent.mode])
+					vertexIndex = 0; 
+				
+				// Extract the coordinates of the mouse click
+									
+				vertices[vertexIndex] = getImageCoordinates(e.getPoint());
+				vertexIndex++;
+				
+				// Make the measurement if the required number of points are had
+				
+				if (vertexIndex == GUI.measurePointCount[parent.mode])
+					parent.makeMeasurement(parent.mode);
+			}
+		}		
+	}
+	
+	public void mouseDragged(MouseEvent e)
+	{
+		Point now = e.getPoint();
+
+		if (parent.movingMode) // if in moving mode
+			updateMove(now);
+	}
+	
+	private void updateMove(Point now)
+	{
+		int dx = now.x - click.x;
+		int dy = now.y - click.y;
+
+		click = now;
+		translateOffset(dx, dy);
+	}
+	
+	public void mouseMoved(MouseEvent e)
+	{
+		mouse = e.getPoint();
+		repaint();
+	}
+	
+	/** Enables selection mode; Starts a new selection.  
+	 */
+	public void areaSelectionStart()
+	{
+		select = new GeneralPath();
+		selecting = true;
+		selected = false;
+	}
+
+	/** Finalizes the current selection, thereby
+	 * allowing it to be used for processes such as
+	 * population or eradication.
+	 */
+	public void areaSelectionFinalize()
+	{
+		areaSelectionCancel();		
+		selected = true;
+		repaint();
+	}
+	
+	/** Disables selection mode; Terminates the current selection 
+	 *process if  a selection process is ongoing. Also sets the
+	 * selection thus far to null, thereby removing it from the
+	 * screen and preventing it from being used for anything. 
+	 */
+	public void areaSelectionCancel()
+	{
+		if (select.getCurrentPoint() != null)
+			select.closePath();
+		selecting = false;
+		selected = false;
+		selectStart = null;
+		selectCurrent = null;
+		repaint();
+	}
+	
 	@Override
 	public void paintComponent(Graphics g)
 	{
@@ -225,6 +300,94 @@ public class ImagePanel extends JPanel
 		g2.transform(at);
 		if (img != null)
 			g2.drawImage(img, 0, 0, null);
-		drawLines(g2);				
+		drawSelection(g2);				
 	}
+	
+	/** Draws the lines of a selection (e.g. angle, ruler)
+	 * if necessary.
+	 * 
+	 * @param g2	the Graphics context in which to paint
+	 */
+	private void drawSelection(Graphics2D g2)
+	{		
+		if (parent.mode == GUI.AREA)
+			drawArea(g2);
+		else
+			drawLines(g2);
+	}
+	
+	private void drawLines(Graphics2D g2)
+	{
+		boolean doneMeasuring = vertexIndex >= GUI.measurePointCount[parent.mode];
+		
+		// Set color mode
+		
+		g2.setColor(xorBack);
+		g2.setXORMode(lineColor);
+		
+		for (int i = 0; i < vertexIndex - 1; i++)
+			g2.drawLine(vertices[i].x, vertices[i].y, vertices[i+1].x, vertices[i+1].y);
+		
+		int index = vertexIndex - 1;
+		Point pt = getImageCoordinates(mouse);
+		if (index >= 0 && !doneMeasuring)
+			g2.drawLine(vertices[index].x, vertices[index].y, pt.x, pt.y);
+		
+		// Reset color mode
+		
+		g2.setPaintMode();
+	}
+	
+	private void drawArea(Graphics2D g2)
+	{
+		if (selecting || selected)
+		{
+			GeneralPath preview = new GeneralPath(select);
+			if (selectCurrent != null) // draw preview selection of mouse hover, if valid
+				preview.lineTo(selectCurrent.x, selectCurrent.y);
+
+			showSelection(g2, preview);
+		}
+	}
+	
+	/** Draws the cells that are contained within the bounds of the
+	 * given shape. The color drawn is the XOR of the existing color.
+	 * 
+	 * @param g			the Graphics context in which to paint
+	 * @param select	the Shape representing the boundary of the selection
+	 */
+	public void showSelection (Graphics2D g2, Shape select)
+	{
+		// Set color mode
+		
+		g2.setColor(xorBack);
+		g2.setXORMode(lineColor);
+		
+		// Initialize bounds of checking area
+
+		Rectangle bounds = select.getBounds();
+		int left = bounds.x;
+		int down = bounds.y;
+		int right = left + bounds.width;
+		int up = down + bounds.height;
+
+		// Iterate through grid selection and draw pixels, if within shape
+
+		for (int x = left; x < right; x++)
+		{
+			for (int y = down; y < up; y++)
+			{			
+				if (select.contains(x, y))
+				{								
+					Color color = GUI.getXORColor(getPixel(new Point(x, y)));
+					g2.setColor(color);
+					g2.fillRect(x, y, 1, 1); // draw pixel
+				}
+			}
+		}
+		
+		// Reset color mode
+		
+		g2.setPaintMode();
+	}		
 }
