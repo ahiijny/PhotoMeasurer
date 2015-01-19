@@ -4,9 +4,13 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Insets;
 import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.Shape;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.geom.AffineTransform;
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 
 import javax.swing.JPanel;
 
@@ -36,6 +40,7 @@ public class Plotter extends JPanel
 									      COLOR_Y, COLOR_Z, COLOR_LAM_XYZ,
 									      COLOR_LAM_xy, COLOR_LAM_SAT_EXTRAP, COLOR_LAM_RGB};
 	
+	public static double[] defaultHistogramStep = {1/255.0, 1/255.0, 1.79/255.0, 1};
 	public static double maxRGB = 1;
 	public static double minRGB = 0;
 	public static double maxXYZ = 1.79;
@@ -49,7 +54,8 @@ public class Plotter extends JPanel
 	 * First dataset are the t-values
 	 * Second dataset is empty
 	 * The rest is as specified by the constants in GUI */
-	public double[][] data = new double[GUI.labelsProfilerParams.length][1];		
+	public double[][] profile_data = new double[GUI.labelsProfilerParams.length][1];
+	public double[][] area_data = new double[GUI.labelsAreaParams.length][1];
 	public Color color;
 	
 	public Point p1 = new Point(0, 0);
@@ -68,9 +74,16 @@ public class Plotter extends JPanel
 	
 	public double hStep = 1;	
 	
-	public double[] vStep = new double[GUI.labelsProfilerParams.length]; // In screen pixels
+	public double[] histogramStep = new double[4]; 
+	public double[] mins = new double[GUI.labelsAreaParams.length];
+	public double[] maxes = new double[GUI.labelsAreaParams.length];
+	public int[] histogramWidth = new int[GUI.labelsAreaParams.length];
+	
+	public double[] hSteps = new double[GUI.labelsAreaParams.length]; // In the relevant units
+	public double[] vSteps = new double[GUI.labelsProfilerParams.length]; // In screen pixels
 	public double[] vOffset = new double[GUI.labelsProfilerParams.length]; // In screen pixels
-	public boolean[] plotEnabled = new boolean[GUI.labelsProfilerParams.length]; // In screen pixels
+	public boolean[] profilePlotEnabled = new boolean[GUI.labelsProfilerParams.length];
+	public boolean[] areaPlotEnabled = new boolean[GUI.labelsAreaParams.length]; // In screen pixels
 	public Insets insets = new Insets(2,4,2,4);
 	public Dimension plotSize = new Dimension(0, 0);
 	
@@ -80,27 +93,16 @@ public class Plotter extends JPanel
 		setBackground(Color.black);
 		setPreferredSize(new Dimension(1, preferredHeight));
 		addComponentListener(new MyListener());
-	}
-	
-	public void paintComponent(Graphics g)
-	{
-		super.paintComponent(g);;
+		setDefaultExtrema();
+		setDefaultHistogramStep();
+	}	
 		
-		Graphics2D g2d = (Graphics2D)g;
-		AffineTransform at = AffineTransform.getScaleInstance(1, -1);
-		at.preConcatenate(AffineTransform.getTranslateInstance(0, getHeight()));
-		g2d.transform(at);
-		
-		if (!editLock)
-			plotProfile(g2d);
-	}
-	
 	public void refresh()
 	{
 		if (parent.mode == GUI.PROFILER)
 			sampleProfile();
 		else if (parent.mode == GUI.AREA)
-			sampleArea();
+			sampleArea(parent.ip.getAreaSelection());
 		repaint();
 	}
 		
@@ -149,9 +151,14 @@ public class Plotter extends JPanel
 		parent.ip.translateOffset(0, -preferredHeight);
 	}
 	
-	public void setPlotEnabled(int param, boolean enabled)
+	public void setProfilePlotEnabled(int param, boolean enabled)
 	{
-		plotEnabled[param] = enabled;
+		profilePlotEnabled[param] = enabled;
+	}
+	
+	public void setAreaPlotEnabled(int param, boolean enabled) 
+	{
+		areaPlotEnabled[param] = enabled;
 	}
 	
 	public void extrapolate(Point p1, Point p2, int imgWidth, int imgHeight)
@@ -263,9 +270,103 @@ public class Plotter extends JPanel
 		return (int)(length / pixelsPerSample + 0.5);
 	}
 	
-	public void sampleArea()
+	public void sampleArea(Shape shape)
 	{
-		
+		if (shape != null)
+		{
+			// Write status
+			
+			parent.setTitle("Working...");
+			editLock = true;
+			parent.refresh();
+			
+			// Initialize bounds of checking area
+	
+			Rectangle bounds = shape.getBounds();
+			int left = Math.max(bounds.x, 0);
+			int down = Math.max(bounds.y, 0);
+			int right = bounds.x + bounds.width;
+			int up = bounds.y + bounds.height;	
+			
+			// Create tester
+			
+			BufferedImage tester = new BufferedImage(bounds.x + bounds.width, bounds.y + bounds.height, BufferedImage.TYPE_INT_ARGB);
+			Graphics2D g = (Graphics2D)tester.getGraphics();
+			g.setColor(new Color(0));
+			g.draw(shape);
+									
+			// Iterate through grid selection and store point, if within shape
+			
+			ArrayList<Point> points = new ArrayList<Point>(bounds.width * bounds.height);
+	
+			for (int x = left; x < right; x++)
+				for (int y = down; y < up; y++)	
+					if (tester.getRGB(x, y) == 0)	
+						points.add(new Point(x, y));
+			// Set up data array
+			
+			recalcHistogramSteps();			
+			area_data = new double[GUI.labelsAreaParams.length][];
+			
+			for (int i = 0; i < area_data.length; i++)
+			{
+				area_data[i] = new double[histogramWidth[i]];
+				
+				// Init histogram counters to 0
+				for (int j = 0; j < area_data[i].length; j++)
+					area_data[i][j] = 0;
+			}
+			
+			// Sample data
+			
+			int n = points.size();
+			for (int i = 0; i < n; i++)
+			{	
+				Point pt = points.get(i);
+				double[] thisPoint = {pt.x, pt.y};
+				
+				double[] rgb = sample_RGB(thisPoint);
+				area_data[GUI.AR_SRED][getHistogramIndex(GUI.AR_SRED, rgb[0])]++;
+				area_data[GUI.AR_SGREEN][getHistogramIndex(GUI.AR_SGREEN, rgb[1])]++;
+				area_data[GUI.AR_SBLUE][getHistogramIndex(GUI.AR_SBLUE, rgb[2])]++;
+				
+				double[] rgb_lin = sample_RGB_lin(thisPoint, rgb);
+				area_data[GUI.AR_LINRED][getHistogramIndex(GUI.AR_LINRED, rgb_lin[0])]++;
+				area_data[GUI.AR_LINGREEN][getHistogramIndex(GUI.AR_LINGREEN, rgb_lin[1])]++;
+				area_data[GUI.AR_LINBLUE][getHistogramIndex(GUI.AR_LINBLUE, rgb_lin[2])]++;
+				
+				double[] XYZ = sample_XYZ(thisPoint, rgb);
+				area_data[GUI.AR_X][getHistogramIndex(GUI.AR_X, XYZ[0])]++;
+				area_data[GUI.AR_Y][getHistogramIndex(GUI.AR_Y, XYZ[1])]++;
+				area_data[GUI.AR_Z][getHistogramIndex(GUI.AR_Z, XYZ[2])]++;
+				
+				double lambda1 = sample_lambda_XYZ(thisPoint, XYZ);
+				area_data[GUI.AR_LAM_XYZ][getHistogramIndex(GUI.AR_LAM_XYZ, lambda1)]++;
+				
+				double lambda2= sample_lambda_xy(thisPoint, XYZ);
+				area_data[GUI.AR_LAM_xy][getHistogramIndex(GUI.AR_LAM_xy, lambda2)]++;
+				
+				double lambda3 = sample_lambda_RGB(thisPoint);
+				area_data[GUI.AR_LAM_RGB][getHistogramIndex(GUI.AR_LAM_RGB, lambda3)]++;
+				
+				double lambda4 = sample_lambda_sat_extrap(thisPoint, XYZ);
+				area_data[GUI.AR_LAM_SAT_EXTRAP][getHistogramIndex(GUI.AR_LAM_SAT_EXTRAP, lambda4)]++;
+			}
+			parent.resetTitle();
+			editLock = false;
+		}				
+	}
+	
+	/** For histogram area calculations
+	 */
+	private int getHistogramIndex(int param, double value)
+	{
+		int bin = (int)(value / hSteps[param] - mins[param]+ 0.5);
+		if (bin < 0)
+			bin = 0;
+		if (bin >= histogramWidth[param])
+			bin = histogramWidth[param] - 1;
+		return bin;
 	}
 	
 	public void sampleProfile()
@@ -277,7 +378,7 @@ public class Plotter extends JPanel
 		int n = getPointCount();		
 		double dt = T/n;
 		double[][] points = new double[n][2];
-		data = new double[GUI.labelsProfilerParams.length][n];
+		profile_data = new double[GUI.labelsProfilerParams.length][n];
 		
 		recalcHStep(n);
 		
@@ -286,9 +387,9 @@ public class Plotter extends JPanel
 		for (int i = 0; i < n; i++)
 		{
 			points[i] = Calc.add(r, Calc.scale(m, i * dt));
-			data[GUI.PF_X_COORD][i] = points[i][0];
-			data[GUI.PF_Y_COORD][i] = points[i][1];
-			data[GUI.PF_T_COORD][i] = 1.0 * i * pixelsPerSample;
+			profile_data[GUI.PF_X_COORD][i] = points[i][0];
+			profile_data[GUI.PF_Y_COORD][i] = points[i][1];
+			profile_data[GUI.PF_T_COORD][i] = 1.0 * i * pixelsPerSample;
 		}
 		
 		System.out.print ("r = ");
@@ -301,31 +402,31 @@ public class Plotter extends JPanel
 		for (int i = 0; i < n; i++)
 		{
 			double[] rgb = sample_RGB(points[i]);
-			data[GUI.PF_SRED][i] = rgb[0];
-			data[GUI.PF_SGREEN][i] = rgb[1];
-			data[GUI.PF_SBLUE][i] = rgb[2];
+			profile_data[GUI.PF_SRED][i] = rgb[0];
+			profile_data[GUI.PF_SGREEN][i] = rgb[1];
+			profile_data[GUI.PF_SBLUE][i] = rgb[2];
 			
-			double[] rgb_lin = sample_RGB_lin(points[i]);
-			data[GUI.PF_LINRED][i] = rgb_lin[0];
-			data[GUI.PF_LINGREEN][i] = rgb_lin[1];
-			data[GUI.PF_LINBLUE][i] = rgb_lin[2];
+			double[] rgb_lin = sample_RGB_lin(points[i], rgb);
+			profile_data[GUI.PF_LINRED][i] = rgb_lin[0];
+			profile_data[GUI.PF_LINGREEN][i] = rgb_lin[1];
+			profile_data[GUI.PF_LINBLUE][i] = rgb_lin[2];
 			
-			double[] XYZ = sample_XYZ(points[i]);
-			data[GUI.PF_X][i] = XYZ[0];
-			data[GUI.PF_Y][i] = XYZ[1];
-			data[GUI.PF_Z][i] = XYZ[2];
+			double[] XYZ = sample_XYZ(points[i], rgb);
+			profile_data[GUI.PF_X][i] = XYZ[0];
+			profile_data[GUI.PF_Y][i] = XYZ[1];
+			profile_data[GUI.PF_Z][i] = XYZ[2];
 			
-			double lambda1 = sample_lambda_XYZ(points[i]);
-			data[GUI.PF_LAM_XYZ][i] = lambda1;
+			double lambda1 = sample_lambda_XYZ(points[i], XYZ);
+			profile_data[GUI.PF_LAM_XYZ][i] = lambda1;
 			
-			double lambda2= sample_lambda_xy(points[i]);
-			data[GUI.PF_LAM_xy][i] = lambda2;
+			double lambda2= sample_lambda_xy(points[i], XYZ);
+			profile_data[GUI.PF_LAM_xy][i] = lambda2;
 			
 			double lambda3 = sample_lambda_RGB(points[i]);
-			data[GUI.PF_LAM_RGB][i] = lambda3;
+			profile_data[GUI.PF_LAM_RGB][i] = lambda3;
 			
-			double lambda4 = sample_lambda_sat_extrap(points[i]);
-			data[GUI.PF_LAM_SAT_EXTRAP][i] = lambda4;
+			double lambda4 = sample_lambda_sat_extrap(points[i], XYZ);
+			profile_data[GUI.PF_LAM_SAT_EXTRAP][i] = lambda4;
 		}
 		editLock = false;
 	}
@@ -340,43 +441,99 @@ public class Plotter extends JPanel
 	public void recalcHStep(int n)
 	{
 		double length = plotSize.width;
-		hStep = length / n;		
+		hStep = length / n;
+	}
+	
+	public void recalcHistogramSteps()
+	{		
+		hSteps[GUI.AR_SRED] = histogramStep[GUI.AR_SRGB_STEP];
+		hSteps[GUI.AR_SGREEN] = histogramStep[GUI.AR_SRGB_STEP];
+		hSteps[GUI.AR_SBLUE] = histogramStep[GUI.AR_SRGB_STEP];		
+		hSteps[GUI.AR_LINRED] = histogramStep[GUI.AR_LINRGB_STEP];
+		hSteps[GUI.AR_LINGREEN] = histogramStep[GUI.AR_LINRGB_STEP];
+		hSteps[GUI.AR_LINBLUE] = histogramStep[GUI.AR_LINRGB_STEP];		
+		hSteps[GUI.AR_X] = histogramStep[GUI.AR_XYZ_STEP];
+		hSteps[GUI.AR_Y] = histogramStep[GUI.AR_XYZ_STEP];
+		hSteps[GUI.AR_Z] = histogramStep[GUI.AR_XYZ_STEP];		
+		hSteps[GUI.AR_LAM_XYZ] = histogramStep[GUI.AR_LAMBDA_STEP];
+		hSteps[GUI.AR_LAM_xy] = histogramStep[GUI.AR_LAMBDA_STEP];
+		hSteps[GUI.AR_LAM_RGB] = histogramStep[GUI.AR_LAMBDA_STEP];
+		hSteps[GUI.AR_LAM_SAT_EXTRAP] = histogramStep[GUI.AR_LAMBDA_STEP];
+		
+		histogramWidth[GUI.AR_SRED] = (int)((maxRGB - minRGB)/histogramStep[GUI.AR_SRGB_STEP] + 1.5);
+		histogramWidth[GUI.AR_SGREEN] = (int)((maxRGB - minRGB)/histogramStep[GUI.AR_SRGB_STEP]+ 1.5);
+		histogramWidth[GUI.AR_SBLUE] = (int)((maxRGB - minRGB)/histogramStep[GUI.AR_SRGB_STEP]+ 1.5);		
+		histogramWidth[GUI.AR_LINRED] = (int)((maxRGB - minRGB)/histogramStep[GUI.AR_LINRGB_STEP]+ 1.5);
+		histogramWidth[GUI.AR_LINGREEN] = (int)((maxRGB - minRGB)/histogramStep[GUI.AR_LINRGB_STEP]+ 1.5);
+		histogramWidth[GUI.AR_LINBLUE] = (int)((maxRGB - minRGB)/histogramStep[GUI.AR_LINRGB_STEP]+ 1.5);		
+		histogramWidth[GUI.AR_X] = (int)((maxXYZ - minXYZ)/histogramStep[GUI.AR_XYZ_STEP]+ 1.5);
+		histogramWidth[GUI.AR_Y] = (int)((maxXYZ - minXYZ)/histogramStep[GUI.AR_XYZ_STEP]+ 1.5);
+		histogramWidth[GUI.AR_Z] = (int)((maxXYZ - minXYZ)/histogramStep[GUI.AR_XYZ_STEP]+ 1.5);		
+		histogramWidth[GUI.AR_LAM_XYZ] = (int)((maxLambda - minLambda)/histogramStep[GUI.AR_LAMBDA_STEP]+ 1.5);
+		histogramWidth[GUI.AR_LAM_xy] = (int)((maxLambda - minLambda)/histogramStep[GUI.AR_LAMBDA_STEP]+ 1.5);
+		histogramWidth[GUI.AR_LAM_RGB] = (int)((maxLambda - minLambda)/histogramStep[GUI.AR_LAMBDA_STEP]+ 1.5);
+		histogramWidth[GUI.AR_LAM_SAT_EXTRAP] = (int)((maxLambda - minLambda)/histogramStep[GUI.AR_LAMBDA_STEP]+ 1.5);
 	}
 	
 	public void recalcVStep()
 	{
 		double height = plotSize.height;
-		double stepRGB = height / (maxRGB - minRGB);
-		double stepXYZ = height / (maxXYZ - minXYZ);
-		double stepLambda = height / (maxLambda - minLambda);
-						
-		vStep[GUI.PF_SRED] = stepRGB;
-		vStep[GUI.PF_SGREEN] = stepRGB;
-		vStep[GUI.PF_SBLUE] = stepRGB;
-		vStep[GUI.PF_LINRED] = stepRGB;
-		vStep[GUI.PF_LINGREEN] = stepRGB;
-		vStep[GUI.PF_LINBLUE] = stepRGB;
-		vStep[GUI.PF_X] = stepXYZ;
-		vStep[GUI.PF_Y] = stepXYZ;
-		vStep[GUI.PF_Z] = stepXYZ;
-		vStep[GUI.PF_LAM_XYZ] = stepLambda;
-		vStep[GUI.PF_LAM_xy] = stepLambda;
-		vStep[GUI.PF_LAM_SAT_EXTRAP] = stepLambda;
-		vStep[GUI.PF_LAM_RGB] = stepLambda;
 		
-		vOffset[GUI.PF_SRED] = -minRGB * stepRGB + insets.bottom;
-		vOffset[GUI.PF_SGREEN] = -minRGB * stepRGB + insets.bottom;
-		vOffset[GUI.PF_SBLUE] = -minRGB * stepRGB + insets.bottom;
-		vOffset[GUI.PF_LINRED] = -minRGB * stepRGB + insets.bottom;
-		vOffset[GUI.PF_LINGREEN] = -minRGB * stepRGB + insets.bottom;
-		vOffset[GUI.PF_LINBLUE] = -minRGB * stepRGB + insets.bottom;
-		vOffset[GUI.PF_X] = -minXYZ * stepXYZ + insets.bottom;
-		vOffset[GUI.PF_Y] = -minXYZ * stepXYZ + insets.bottom;
-		vOffset[GUI.PF_Z] = -minXYZ * stepXYZ + insets.bottom;
-		vOffset[GUI.PF_LAM_XYZ] = -minLambda * stepLambda + insets.bottom;
-		vOffset[GUI.PF_LAM_xy] = -minLambda * stepLambda + insets.bottom;
-		vOffset[GUI.PF_LAM_SAT_EXTRAP] = -minLambda * stepLambda + insets.bottom;
-		vOffset[GUI.PF_LAM_RGB] = -minLambda * stepLambda + insets.bottom;	
+		if (parent.mode == GUI.PROFILER)
+		{			
+			double stepRGB = height / (maxRGB - minRGB);
+			double stepXYZ = height / (maxXYZ - minXYZ);
+			double stepLambda = height / (maxLambda - minLambda);
+							
+			vSteps[GUI.PF_SRED] = stepRGB;
+			vSteps[GUI.PF_SGREEN] = stepRGB;
+			vSteps[GUI.PF_SBLUE] = stepRGB;
+			vSteps[GUI.PF_LINRED] = stepRGB;
+			vSteps[GUI.PF_LINGREEN] = stepRGB;
+			vSteps[GUI.PF_LINBLUE] = stepRGB;
+			vSteps[GUI.PF_X] = stepXYZ;
+			vSteps[GUI.PF_Y] = stepXYZ;
+			vSteps[GUI.PF_Z] = stepXYZ;
+			vSteps[GUI.PF_LAM_XYZ] = stepLambda;
+			vSteps[GUI.PF_LAM_xy] = stepLambda;
+			vSteps[GUI.PF_LAM_SAT_EXTRAP] = stepLambda;
+			vSteps[GUI.PF_LAM_RGB] = stepLambda;
+			
+			vOffset[GUI.PF_SRED] = -minRGB * stepRGB + insets.bottom;
+			vOffset[GUI.PF_SGREEN] = -minRGB * stepRGB + insets.bottom;
+			vOffset[GUI.PF_SBLUE] = -minRGB * stepRGB + insets.bottom;
+			vOffset[GUI.PF_LINRED] = -minRGB * stepRGB + insets.bottom;
+			vOffset[GUI.PF_LINGREEN] = -minRGB * stepRGB + insets.bottom;
+			vOffset[GUI.PF_LINBLUE] = -minRGB * stepRGB + insets.bottom;
+			vOffset[GUI.PF_X] = -minXYZ * stepXYZ + insets.bottom;
+			vOffset[GUI.PF_Y] = -minXYZ * stepXYZ + insets.bottom;
+			vOffset[GUI.PF_Z] = -minXYZ * stepXYZ + insets.bottom;
+			vOffset[GUI.PF_LAM_XYZ] = -minLambda * stepLambda + insets.bottom;
+			vOffset[GUI.PF_LAM_xy] = -minLambda * stepLambda + insets.bottom;
+			vOffset[GUI.PF_LAM_SAT_EXTRAP] = -minLambda * stepLambda + insets.bottom;
+			vOffset[GUI.PF_LAM_RGB] = -minLambda * stepLambda + insets.bottom;	
+		}
+		else if (parent.mode == GUI.AREA)
+		{
+			for (int i = 0; i < GUI.labelsAreaParams.length; i++)
+			{
+				// Find max value
+				int max = Integer.MIN_VALUE;
+				for (int j = 0; j < area_data[i].length; j++)
+					if (area_data[i][j] > max)
+						max = (int)area_data[i][j];
+				vSteps[i] = height / max;
+				vOffset[i] = -mins[i] * vSteps[i] + insets.bottom;				
+			}
+		}
+	}
+	
+	public double getHistogramValue(int mode, int index)
+	{
+		double result = 0;
+		if (parent.mode == GUI.AREA)
+			result = mins[mode] + hSteps[mode] * index;
+		return result;
 	}
 	
 	public double[] sample_RGB(double[] location)
@@ -389,43 +546,24 @@ public class Plotter extends JPanel
 		return rgb;
 	}
 	
-	public double[] sample_RGB_lin(double[] location)
-	{
-		Point point = new Point();
-		point.setLocation(location[0], location[1]);
-		Color c = parent.ip.getPixel(point);
-		int[] rgb255 = Calc.getIntRGB(c);
-		double[] rgb = new double[] {rgb255[0]/255.0, rgb255[1]/255.0, rgb255[2]/255.0};		
+	public double[] sample_RGB_lin(double[] location, double[] rgb)
+	{	
 		return Calc.sRGBreverseGamma(rgb);
 	}
 	
-	public double[] sample_XYZ(double[] location)
+	public double[] sample_XYZ(double[] location, double[] rgb)
 	{
-		Point point = new Point();
-		point.setLocation(location[0], location[1]);
-		Color c = parent.ip.getPixel(point);
-		int[] rgb255 = Calc.getIntRGB(c);
-		return Calc.RGBtoXYZ(rgb255);
+		return Calc.RGBtoXYZ(rgb);
 	}
 	
-	public double sample_lambda_XYZ (double[] location)
+	public double sample_lambda_XYZ (double[] location, double[] XYZ)
 	{
-		Point point = new Point();
-		point.setLocation(location[0], location[1]);
-		Color c = parent.ip.getPixel(point);
-		int[] rgb255 = Calc.getIntRGB(c);
-		double[] XYZ = Calc.RGBtoXYZ(rgb255);
 		double[] results = Calc.getPrimaryWavelengthFitXYZ(XYZ);
 		return results[0];		
 	}
 	
-	public double sample_lambda_xy (double[] location)
+	public double sample_lambda_xy (double[] location, double[] XYZ)
 	{
-		Point point = new Point();
-		point.setLocation(location[0], location[1]);
-		Color c = parent.ip.getPixel(point);
-		int[] rgb255 = Calc.getIntRGB(c);
-		double[] XYZ = Calc.RGBtoXYZ(rgb255);
 		double[] results = Calc.getPrimaryWavelengthFitxy(XYZ);
 		return results[0];		
 	}
@@ -440,25 +578,70 @@ public class Plotter extends JPanel
 		return results[0];		
 	}
 	
-	public double sample_lambda_sat_extrap (double[] location)
+	public double sample_lambda_sat_extrap (double[] location, double[] XYZ)
 	{
-		Point point = new Point();
-		point.setLocation(location[0], location[1]);
-		Color c = parent.ip.getPixel(point);
-		int[] rgb255 = Calc.getIntRGB(c);
-		double[] XYZ = Calc.RGBtoXYZ(rgb255);
 		double[] results = Calc.getPrimaryWavelengthSatExtrap(XYZ);
 		return results[0];		
 	}
 	
-	public void plotHistogram(Graphics2D g)
+	public void setDefaultExtrema()
 	{
-	
+		mins[GUI.AR_SRED] = minRGB;
+		mins[GUI.AR_SGREEN] = minRGB;
+		mins[GUI.AR_SBLUE] = minRGB;
+		mins[GUI.AR_LINRED] = minRGB;
+		mins[GUI.AR_LINGREEN] = minRGB;
+		mins[GUI.AR_LINBLUE] = minRGB;
+		mins[GUI.AR_X] = minXYZ;
+		mins[GUI.AR_Y] = minXYZ;
+		mins[GUI.AR_Z] = minXYZ;
+		mins[GUI.AR_LAM_XYZ] = minLambda;
+		mins[GUI.AR_LAM_xy] = minLambda;
+		mins[GUI.AR_LAM_RGB] = minLambda;
+		mins[GUI.AR_LAM_SAT_EXTRAP] = minLambda;
+		
+		maxes[GUI.AR_SRED] = maxRGB;
+		maxes[GUI.AR_SGREEN] = maxRGB;
+		maxes[GUI.AR_SBLUE] = maxRGB;
+		maxes[GUI.AR_LINRED] = maxRGB;
+		maxes[GUI.AR_LINGREEN] = maxRGB;
+		maxes[GUI.AR_LINBLUE] = maxRGB;
+		maxes[GUI.AR_X] = maxXYZ;
+		maxes[GUI.AR_Y] = maxXYZ;
+		maxes[GUI.AR_Z] = maxXYZ;
+		maxes[GUI.AR_LAM_XYZ] = maxLambda;
+		maxes[GUI.AR_LAM_xy] = maxLambda;
+		maxes[GUI.AR_LAM_RGB] = maxLambda;
+		maxes[GUI.AR_LAM_SAT_EXTRAP] = maxLambda;
 	}
+	
+	public void setDefaultHistogramStep()
+	{
+		for (int i = 0; i < histogramStep.length; i++)
+			histogramStep[i] = defaultHistogramStep[i];
+	}
+	
+	public void paintComponent(Graphics g)
+	{
+		super.paintComponent(g);;
+		
+		Graphics2D g2d = (Graphics2D)g;
+		AffineTransform at = AffineTransform.getScaleInstance(1, -1);
+		at.preConcatenate(AffineTransform.getTranslateInstance(0, getHeight()));
+		g2d.transform(at);
+		
+		if (!editLock)
+		{
+			if (parent.mode == GUI.PROFILER)
+				plotProfile(g2d);
+			else if (parent.mode == GUI.AREA)
+				plotHistogram(g2d);
+		}
+	}	
 	
 	public void plotProfile (Graphics2D g)
 	{
-		int n = data[0].length;
+		int n = profile_data[0].length;
 		
 		if (n != 0)
 		{
@@ -469,18 +652,18 @@ public class Plotter extends JPanel
 			
 			// Plot points
 			
-			for (int i = 0; i < data.length; i++)
+			for (int i = 0; i < profile_data.length; i++)
 			{
-				if (plotEnabled[i])
+				if (profilePlotEnabled[i])
 				{						
 					g.setColor(colors[i]);
 					int lastx = x[0];
-					int lasty = (int)(vStep[i] * data[i][0] + vOffset[i] + 0.5);
+					int lasty = (int)(vSteps[i] * profile_data[i][0] + vOffset[i] + 0.5);
 					
 					for (int t = 0; t < n; t++)
 					{
 						int x1 = x[t];
-						int y1 = (int)(vStep[i] * data[i][t] + vOffset[i] + 0.5);	
+						int y1 = (int)(vSteps[i] * profile_data[i][t] + vOffset[i] + 0.5);	
 						g.fillRect(x1, y1, 1, 1);
 						g.drawLine(x1, y1, lastx, lasty);
 						lastx = x1;
@@ -491,11 +674,43 @@ public class Plotter extends JPanel
 		}
 	}
 	
+	public void plotHistogram(Graphics2D g)
+	{
+		recalcVStep();
+		
+		// Plot points
+		
+		for (int i = 0; i < area_data.length; i++)
+		{
+			if (areaPlotEnabled[i])
+			{	
+				g.setColor(colors[i+3]);
+				int lastx = (int)(insets.left + 0.5);
+				int lasty = (int)(vSteps[i] * area_data[i][0] + vOffset[i] + 0.5);
+				recalcHStep(area_data[i].length);
+				
+				System.out.println(area_data[i].length);
+				System.out.println(hStep + "," + vSteps[i]);
+				
+				for (int t = 0; t < area_data[i].length; t++)
+				{
+					int x1 = (int)(insets.left + (hStep * t) + 0.5);
+					int y1 = (int)(vSteps[i] * area_data[i][t] + vOffset[i] + 0.5);
+										
+					g.fillRect(x1, y1, 1, 1);
+					g.drawLine(x1, y1, lastx, lasty);
+					lastx = x1;
+					lasty = y1;
+				}			
+			}
+		}
+	}
+	
 	public boolean isAllSelected()
 	{
 		boolean allSelected = true;
 		for (int i = GUI.PF_SRED; i < GUI.labelsProfilerParams.length; i++)
-			allSelected = allSelected && plotEnabled[i];
+			allSelected = allSelected && profilePlotEnabled[i];
 		return allSelected;
 	}
 	
@@ -504,11 +719,10 @@ public class Plotter extends JPanel
 		public void componentResized(ComponentEvent e) 
 		{
 			recalcPlotSize();
-			recalcHStep(data[0].length);
+			recalcHStep(profile_data[0].length);
 			recalcVStep();
-	        refresh();           
+	        repaint();           
 	    }
-	}
-	
+	}		
 }
 

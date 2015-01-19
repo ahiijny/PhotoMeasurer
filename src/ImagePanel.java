@@ -313,7 +313,8 @@ public class ImagePanel extends JPanel
 	 */
 	public void areaSelectionFinalize()
 	{
-		areaSelectionCancel();		
+		areaSelectionCancel();	
+		parent.makeMeasurement(GUI.AREA);
 		selected = true;
 	}
 	
@@ -336,6 +337,11 @@ public class ImagePanel extends JPanel
 		repaint();
 		
 		parent.plotter.editLock = false;
+	}
+	
+	public GeneralPath getAreaSelection()
+	{
+		return select;
 	}
 	
 	@Override

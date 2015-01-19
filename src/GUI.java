@@ -10,6 +10,7 @@ import java.awt.Insets;
 import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
 import java.awt.Point;
+import java.awt.Shape;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.InputEvent;
@@ -21,6 +22,7 @@ import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
@@ -142,19 +144,24 @@ public class GUI extends JFrame
 	
 	// Area Labels
 	
-	public static final int AR_SRED = 3;
-	public static final int AR_SGREEN = 4;
-	public static final int AR_SBLUE = 5;
-	public static final int AR_LINRED = 6;
-	public static final int AR_LINGREEN = 7;
-	public static final int AR_LINBLUE = 8;
-	public static final int AR_X = 9;
-	public static final int AR_Y = 10;
-	public static final int AR_Z = 11;
-	public static final int AR_LAM_XYZ = 12;
-	public static final int AR_LAM_xy = 13;
-	public static final int AR_LAM_RGB = 14;
-	public static final int AR_LAM_SAT_EXTRAP = 15;
+	public static final int AR_SRGB_STEP = 0;
+	public static final int AR_LINRGB_STEP = 1;
+	public static final int AR_XYZ_STEP = 2;
+	public static final int AR_LAMBDA_STEP = 3;
+	
+	public static final int AR_SRED = 0;
+	public static final int AR_SGREEN = 1;
+	public static final int AR_SBLUE = 2;
+	public static final int AR_LINRED = 3;
+	public static final int AR_LINGREEN = 4;
+	public static final int AR_LINBLUE = 5;
+	public static final int AR_X = 6;
+	public static final int AR_Y = 7;
+	public static final int AR_Z = 8;
+	public static final int AR_LAM_XYZ = 9;
+	public static final int AR_LAM_xy = 10;
+	public static final int AR_LAM_RGB = 11;
+	public static final int AR_LAM_SAT_EXTRAP = 12;
 	
 	// Measurement Panel Fields
 		
@@ -168,7 +175,7 @@ public class GUI extends JFrame
 	public static final String[] labelsRuler = {"Length", "Pixels/length"};
 	public static final String[] labelsProfiler = {"Extrapolate", "Slope Lock", "Select All"};
 	public static final String[] labelsProfilerSpinner = {"x1", "y1", "x2", "y2"};
-	public static final String[] labelsArea = {"Pixels Selected"};
+	public static final String[] labelsArea = {"sRGB step", "linRGB step", "XYZ step", "lambda step"};
 	
 	public static final String[] labelsProfilerParams = {"x coord", "y coord", "t coord", "sRed", "sGreen", "sBlue", "linRed", "linGreen", "linBlue", "X", "Y", "Z", "\u03BB (XYZ fit)", "\u03BB (xyY fit)", "\u03BB (RGB fit)", "\u03BB (sat extrap)"};
 	public static final String[] labelsAreaParams = {"sRed", "sGreen", "sBlue", "linRed", "linGreen", "linBlue", "X", "Y", "Z", "\u03BB (XYZ fit)", "\u03BB (xyY fit)", "\u03BB (RGB fit)", "\u03BB (sat extrap)"};
@@ -177,6 +184,7 @@ public class GUI extends JFrame
 	public JTextField[] fieldsAngle = new JTextField[labelsAngle.length];
 	public JTextField[] fieldsPrimer = new JTextField[labelsPrimer.length];
 	public JTextField[] fieldsRuler = new JTextField[labelsRuler.length];
+	public JTextField[] fieldsArea = new JTextField[labelsArea.length];
 	public JSpinner[] spinnersProfiler = new JSpinner[4];
 	
 	public JRadioButton[] buttonsProfilerOptions = new JRadioButton[labelsProfiler.length];
@@ -226,7 +234,9 @@ public class GUI extends JFrame
 		
 	// Buttons
 		
-	public JButton buttonTableIndex, buttonTableSize, buttonLengthScale, buttonSampleRate, buttonLogProfiles;
+	public JButton buttonTableIndex, buttonTableSize, buttonLengthScale, 
+				   buttonSampleRate, buttonLogProfiles, buttonHistogramSet, 
+				   buttonHistogramDefault, buttonLogArea;
 	
 	// Other Stuff
 	
@@ -247,6 +257,7 @@ public class GUI extends JFrame
 	public Plotter plotter;
 	
 	public String title;
+	public String path;
 
 	public GUI(String title, int width, int height)
 	{
@@ -1028,6 +1039,8 @@ public class GUI extends JFrame
 		for (int i = 0; i < labelsProfilerSpinner.length; i++)
 			labels[i] = new JLabel(labelsProfilerSpinner[i]);
 		
+		// Init profiler parameter toggle buttons
+		
 		for (int i = 0; i < labelsProfilerParams.length; i++)
 		{
 			buttonsProfilerParams[i] = new JToggleButton(labelsProfilerParams[i]);
@@ -1132,7 +1145,7 @@ public class GUI extends JFrame
 		c.gridx = c.gridy = 0;
 		c.insets = new Insets(1,4,1,4);
 		c.fill = GridBagConstraints.NONE;
-		int cols = 7;
+		c.weightx = 1;
 		
 		// Buttons
 		
@@ -1143,7 +1156,76 @@ public class GUI extends JFrame
 		gridBagAdd(area, c, 0, c.gridy, 2, GridBagConstraints.CENTER, buttonAreaSelecting);
 		
 		c.fill = GridBagConstraints.HORIZONTAL;
-		gridBagSeparator(area, c, 0, ++c.gridy, 2);				
+		gridBagSeparator(area, c, 0, ++c.gridy, 2);
+		
+		// Histogram settings
+		
+		JLabel label = new JLabel("Histogram settings");
+		label.setFont(fontHeader);
+		gridBagAdd(area, c, 0, ++c.gridy, 2, GridBagConstraints.FIRST_LINE_START, label);
+		
+		for (int i = 0; i < labelsArea.length; i++)
+		{
+			label = new JLabel(labelsArea[i]);
+			label.setFont(fontCourier);
+			gridBagAdd(area, c, 0, ++c.gridy, 1, GridBagConstraints.FIRST_LINE_START, label);
+			
+			fieldsArea[i] = new JTextField();
+			gridBagAdd(area, c, 1, c.gridy, 1, GridBagConstraints.FIRST_LINE_START, fieldsArea[i]);
+		}
+		
+		// Histogram buttons
+		
+		c.fill = GridBagConstraints.NONE;
+		buttonHistogramSet = new JButton ("Set Steps");
+		buttonHistogramDefault = new JButton ("Default");
+		buttonHistogramSet.addActionListener(myActionListener);
+		buttonHistogramDefault.addActionListener(myActionListener);
+		gridBagAdd(area, c, 0, ++c.gridy, 2, GridBagConstraints.CENTER, buttonHistogramSet);
+		gridBagAdd(area, c, 0, ++c.gridy, 2, GridBagConstraints.CENTER, buttonHistogramDefault);
+		
+		gridBagSeparator(area, c, 0, ++c.gridy, 2);
+		
+		// Init area params
+		
+		for (int i = 0; i < labelsAreaParams.length; i++)
+		{
+			buttonsAreaParams[i] = new JToggleButton(labelsAreaParams[i]);
+			buttonsAreaParams[i].addActionListener(myActionListener);
+			buttonsAreaParams[i].setMargin(new Insets(2,0,2,0));
+			buttonsAreaParams[i].setBackground(Plotter.colors[i+3]);
+			buttonsAreaParams[i].setForeground(Color.black);
+		}
+		
+		// Add area params
+		
+		c.fill = GridBagConstraints.HORIZONTAL;
+		int starty = ++c.gridy;
+		int startx = 0;
+		int dy = 0;
+						
+		for (int i = AR_SRED; i < buttonsAreaParams.length; i++)
+		{
+			gridBagAdd(area, c, startx, starty + ++dy, 1, GridBagConstraints.CENTER, buttonsAreaParams[i]);
+			if (i == AR_LINBLUE)
+			{
+				startx = 1;
+				dy = 0;
+			}
+		}
+		
+		// Add log button
+		
+		c.gridy = starty + AR_LINBLUE + 3;	
+		c.insets = new Insets(2,4,2,4);		
+		
+		gridBagSeparator(area, c, 0, ++c.gridy, 4);	
+		c.fill = GridBagConstraints.NONE;
+		
+		buttonLogArea = new JButton("Log Histograms");
+		buttonLogArea.addActionListener(myActionListener);
+		
+		gridBagAdd(area, c, 0, ++c.gridy, 4, GridBagConstraints.CENTER, buttonLogArea);
 		
 		return area;
 	}
@@ -1261,6 +1343,11 @@ public class GUI extends JFrame
 			displayProfiler(ip.vertices[0], ip.vertices[1]);	
 			plotter.repaint();
 		}
+		else if (mode == AREA)
+		{	
+			plotter.sampleArea(ip.getAreaSelection());
+			plotter.repaint();
+		}
 	}
 	
 	/** Tries to set the specified zoom. If invalid, sets the JComboBox
@@ -1353,6 +1440,32 @@ public class GUI extends JFrame
 				plotter.pixelsPerSample = pixelsPerSample;
 				
 				plotter.setEndPoints(ip.vertices[0], ip.vertices[1], true);
+			}
+		}
+		catch(Exception e)
+		{	
+			e.printStackTrace();
+		}
+		refresh();
+	}
+	
+	public void inputHistogramSteps()
+	{
+		try
+		{
+			if (mode == AREA)
+			{
+				double srgb_step = Double.parseDouble(fieldsArea[AR_SRGB_STEP].getText());
+				double linrgb_step = Double.parseDouble(fieldsArea[AR_LINRGB_STEP].getText());
+				double xyz_step = Double.parseDouble(fieldsArea[AR_XYZ_STEP].getText());
+				double lam_step = Double.parseDouble(fieldsArea[AR_LAMBDA_STEP].getText());
+				
+				plotter.histogramStep[AR_SRGB_STEP] = srgb_step;
+				plotter.histogramStep[AR_LINRGB_STEP] = linrgb_step;
+				plotter.histogramStep[AR_XYZ_STEP] = xyz_step;
+				plotter.histogramStep[AR_LAMBDA_STEP] = lam_step;
+				
+				plotter.sampleArea(ip.getAreaSelection());
 			}
 		}
 		catch(Exception e)
@@ -1499,6 +1612,110 @@ public class GUI extends JFrame
 		}
 	}
 	
+	public void logHistograms()
+	{
+		try
+		{		
+			// Edit lock
+			plotter.editLock = true;
+			
+			// Count required columns			
+			int counter = labelsAreaParams.length;
+			
+			// Increase table size if necessary			
+			if (counter + 3 > tableCols)
+				setTableColCount(counter + 3);
+			
+			// Set Headers
+			
+			int col = 0;
+			
+			tableSet("Magnitude", col++);
+			
+			for (int i = AR_SRED; i <= AR_LINBLUE; i++)
+				tableSet(labelsAreaParams[i], col++);
+			
+			tableSet("Magnitude", col++);
+			
+			for (int i = AR_X; i <= AR_Z; i++)
+				tableSet(labelsAreaParams[i], col++);
+			
+			tableSet("Magnitude", col++);
+			
+			for (int i = AR_LAM_XYZ; i <= AR_LAM_SAT_EXTRAP; i++)
+				tableSet(labelsAreaParams[i], col++);
+			
+			tableIncrement();
+			
+			// Iterate through data
+			
+			int startIndex = tableIndex;
+			
+			// RGB data
+			
+			int n = plotter.area_data[AR_SRED].length;
+								
+			for (int i = 0; i < n; i++)
+			{
+				tableSet("" + plotter.getHistogramValue(AR_SRED, i), 0); // histogram entries
+				tableIncrement();
+			}
+			
+			tableIndex = startIndex;
+			for (int i = 0; i < n; i++)
+			{
+				for (int j = AR_SRED; j <= AR_LINBLUE; j++)				
+					tableSet("" + plotter.area_data[j][i], j+1);
+				tableIncrement();
+			}
+				
+			
+			// XYZ data
+			
+			n = plotter.area_data[AR_X].length;
+			
+			tableIndex = startIndex;
+			for (int i = 0; i < n; i++)
+			{
+				tableSet("" + plotter.getHistogramValue(AR_X, i), AR_X+1); // histogram entries
+				tableIncrement();
+			}
+			
+			tableIndex = startIndex;
+			for (int i = 0; i < n; i++)
+			{
+				for (int j = AR_X; j <= AR_Z; j++)			
+					tableSet("" + plotter.area_data[j][i], j+2);
+				tableIncrement();
+			}
+			
+			// Lambda data
+			
+			n = plotter.area_data[AR_LAM_XYZ].length;
+			
+			tableIndex = startIndex;
+			for (int i = 0; i < n; i++)
+			{
+				tableSet("" + plotter.getHistogramValue(AR_LAM_XYZ, i), AR_LAM_XYZ+2); // histogram entries
+				tableIncrement();
+			}
+			
+			tableIndex = startIndex;
+			for (int i = 0; i < n; i++)
+			{
+				for (int j = AR_LAM_XYZ; j <= AR_LAM_SAT_EXTRAP; j++)			
+					tableSet("" + plotter.area_data[j][i], j+3);
+				tableIncrement();
+			}
+			
+			// Release edit lock
+			plotter.editLock = false;
+		}
+		catch (Exception e)
+		{				
+		}
+	}
+	
 	public void logProfiles()
 	{
 		try
@@ -1507,15 +1724,15 @@ public class GUI extends JFrame
 			plotter.editLock = true;						
 			
 			// We need x-coordinates, y-coordinates, and t-coordinates too.			
-			plotter.plotEnabled[PF_X_COORD] = true;
-			plotter.plotEnabled[PF_Y_COORD] = true;
-			plotter.plotEnabled[PF_T_COORD] = true;
+			plotter.profilePlotEnabled[PF_X_COORD] = true;
+			plotter.profilePlotEnabled[PF_Y_COORD] = true;
+			plotter.profilePlotEnabled[PF_T_COORD] = true;
 			
 			// Count required columns			
 			int counter = 0;
 			
 			for (int i = 0; i < labelsProfilerParams.length; i++)
-				if (plotter.plotEnabled[i])
+				if (plotter.profilePlotEnabled[i])
 					counter++;			
 			
 			// Store all sampled parameters in table columns
@@ -1530,7 +1747,7 @@ public class GUI extends JFrame
 			counter = 0;
 			
 			for (int i = 0; i < labelsProfilerParams.length; i++)
-				if (plotter.plotEnabled[i])
+				if (plotter.profilePlotEnabled[i])
 					params[counter++] = i;
 			
 			// Set Headers
@@ -1541,14 +1758,14 @@ public class GUI extends JFrame
 			
 			// Iterate through data
 			
-			System.out.println("n = " + plotter.data[0].length);
+			System.out.println("n = " + plotter.profile_data[0].length);
 			
-			for (int i = 0; i < plotter.data[0].length; i++)
+			for (int i = 0; i < plotter.profile_data[0].length; i++)
 			{
-				tableSet("" + plotter.data[0][i], 0);
+				tableSet("" + plotter.profile_data[0][i], 0);
 				
 				for (int j = 1; j < params.length; j++)
-					tableSet("" + plotter.data[params[j]][i], j);
+					tableSet("" + plotter.profile_data[params[j]][i], j);
 				
 				tableIncrement();				
 			}	
@@ -1667,6 +1884,7 @@ public class GUI extends JFrame
 			{
 				clearImFields(); // Reset im fields
 				ip.loadImage(load);
+				this.path = path;
 				setTitle(title + " - " + path);				
 				refresh();
 				plotter.refresh();
@@ -1760,8 +1978,8 @@ public class GUI extends JFrame
 		for (int i = PF_SRED; i < labelsProfilerParams.length; i++)
 		{
 			buttonsProfilerParams[i].setSelected(selectAll);
-			plotter.setPlotEnabled(i, selectAll);
-			System.out.println(labelsProfilerParams[i] + " - " + plotter.plotEnabled[i]);
+			plotter.setProfilePlotEnabled(i, selectAll);
+			System.out.println(labelsProfilerParams[i] + " - " + plotter.profilePlotEnabled[i]);
 		}
 		plotter.editLock = false;
 		
@@ -1774,6 +1992,7 @@ public class GUI extends JFrame
 	 * RULER = 3;<br>
 	 * COLOR = 4;<br>
 	 * PROFILER = 5;<br>
+	 * AREA = 5;<br>
 	 */
 	public void setMeasuringMode(int newMode)
 	{
@@ -1792,7 +2011,7 @@ public class GUI extends JFrame
 			
 			// Hide profiler if necessary
 			
-			if (newMode == PROFILER)
+			if (newMode == PROFILER || newMode == AREA)
 				plotter.hide();
 		}
 		else // Selecting a new mode
@@ -1802,7 +2021,7 @@ public class GUI extends JFrame
 			
 			// Show profiler if necessary
 			
-			if (mode == PROFILER)
+			if (mode == PROFILER  || newMode == AREA)
 				plotter.show();
 			
 			// Disable all other buttons
@@ -1817,13 +2036,23 @@ public class GUI extends JFrame
 		paneSpecWrapper.remove(panesMeasurement[oldMode]);
 		paneSpecWrapper.add(panesMeasurement[mode], BorderLayout.SOUTH);
 		refresh();
-	}	
+	}
+	
+	public String getStatus()
+	{
+		return statusBar.getText();
+	}
 		
 	/** @param text	the string to be displayed in the status bar
 	 */
 	public void writeStatus(String text)
 	{
 		statusBar.setText(text);
+	}
+	
+	public void resetTitle()
+	{
+		setTitle(title + " - " + path);
 	}
 	
 	/** Adds the specified value to the next cell. Doubles the
@@ -1878,6 +2107,12 @@ public class GUI extends JFrame
 			// Invalid input
 		}
 	}	
+	
+	public void displayArea()
+	{
+		for (int i = AR_SRGB_STEP; i <= AR_LAMBDA_STEP; i++)
+			fieldsArea[i].setText(Calc.precise12.format(plotter.histogramStep[i]));
+	}
 	
 	public void displayAngle(double degrees)
 	{
@@ -1996,6 +2231,8 @@ public class GUI extends JFrame
 				ip.vertices[1] = plotter.p2;								
 			}
 		}
+		else if (mode == AREA)
+			displayArea();
 	}
 	
 	public void refreshLeftPanel()
@@ -2096,6 +2333,19 @@ public class GUI extends JFrame
 				{
 					logProfiles();
 				}
+				else if (button.equals(buttonLogArea))
+				{
+					logHistograms();
+				}
+				else if (button.equals(buttonHistogramSet))
+				{
+					inputHistogramSteps();
+				}
+				else if (button.equals(buttonHistogramDefault))
+				{
+					plotter.setDefaultHistogramStep();
+					refresh();
+				}
 			}
 			else if (parent instanceof JRadioButton)
 			{
@@ -2134,7 +2384,15 @@ public class GUI extends JFrame
 						{
 							if (button.equals(buttonsProfilerParams[i]))
 							{							
-								plotter.setPlotEnabled(i, button.isSelected());
+								plotter.setProfilePlotEnabled(i, button.isSelected());
+								refresh();
+							}
+						}
+						for (int i = 0; i < labelsAreaParams.length; i++)
+						{
+							if (button.equals(buttonsAreaParams[i]))
+							{							
+								plotter.setAreaPlotEnabled(i, button.isSelected());
 								refresh();
 							}
 						}
