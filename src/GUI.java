@@ -1616,8 +1616,9 @@ public class GUI extends JFrame
 			{
 				clearImFields(); // Reset im fields
 				ip.loadImage(load);
-				setTitle(title + " - " + path);
+				setTitle(title + " - " + path);				
 				refresh();
+				plotter.refresh();
 			}
 		}		
 		manager.addKeyEventDispatcher(keyDispatcher); // return keyboard bindings

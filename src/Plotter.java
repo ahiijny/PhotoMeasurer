@@ -96,6 +96,7 @@ public class Plotter extends JPanel
 	
 	public void refresh()
 	{
+		sample();
 		repaint();
 	}
 		
