@@ -9,6 +9,7 @@ import java.awt.event.MouseEvent;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.PathIterator;
+import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -204,23 +205,58 @@ public class ImagePanel extends JPanel
 		if (!parent.movingMode) // Do not do anything if in moving mode
 		{
 			if (parent.mode != GUI.NONE) // If in a measuring mode
-			{			
-				// Reset the measurement mode if necessary
-				
-				if (vertexIndex >= GUI.measurePointCount[parent.mode])
-					vertexIndex = 0; 
-				
-				// Extract the coordinates of the mouse click
-									
-				vertices[vertexIndex] = getImageCoordinates(e.getPoint());
-				vertexIndex++;
-				
-				// Make the measurement if the required number of points are had
-				
-				if (vertexIndex == GUI.measurePointCount[parent.mode])
-					parent.makeMeasurement(parent.mode);
+			{	
+				if (parent.mode == GUI.AREA) 
+					updateAreaSelectionClick(); // If in area mode
+				else 
+					updateMeasureSelectionClick(); // If in another measuring mode
 			}
 		}		
+	}
+	
+	private void updateAreaSelectionClick()
+	{
+		Point imageClick = getImageCoordinates(click);
+		if (selectStart == null) // if selection currently has no points
+		{
+			// Initialize initial point
+			
+			areaSelectionStart();
+			select.moveTo(imageClick.x, imageClick.y);
+			Point2D temp = select.getCurrentPoint();
+			selectStart = new Point ((int)temp.getX(), (int)temp.getY());
+		}
+		else 
+		{
+			// Finalize selection if last clicked pixel equals the current selected  
+			// pixel or if the first selected pixel equals the current pixel
+			// i.e. Quit selection mode if double clicked or if path is closed.
+			
+			Point2D temp = select.getCurrentPoint();
+			Point pixel = new Point (imageClick);
+			if (pixel.equals(selectStart) || pixel.equals(temp))
+				areaSelectionFinalize();	
+			else
+				select.lineTo(imageClick.x, imageClick.y);											
+		}	
+	}
+	
+	private void updateMeasureSelectionClick()
+	{
+		// Reset the measurement mode if necessary
+		
+		if (vertexIndex >= GUI.measurePointCount[parent.mode])
+			vertexIndex = 0; 
+		
+		// Extract the coordinates of the mouse click
+							
+		vertices[vertexIndex] = getImageCoordinates(click);
+		vertexIndex++;
+		
+		// Make the measurement if the required number of points are had
+		
+		if (vertexIndex == GUI.measurePointCount[parent.mode])
+			parent.makeMeasurement(parent.mode);
 	}
 	
 	public void mouseDragged(MouseEvent e)
@@ -229,6 +265,15 @@ public class ImagePanel extends JPanel
 
 		if (parent.movingMode) // if in moving mode
 			updateMove(now);
+		else
+		{
+			if (selecting)
+			{		
+				Point imageNow = getImageCoordinates(now);
+				select.lineTo (imageNow.x, imageNow.y);
+				selectCurrent = imageNow;
+			}
+		}
 	}
 	
 	private void updateMove(Point now)
@@ -239,10 +284,12 @@ public class ImagePanel extends JPanel
 		click = now;
 		translateOffset(dx, dy);
 	}
-	
+			
 	public void mouseMoved(MouseEvent e)
 	{
 		mouse = e.getPoint();
+		if (selecting && selectStart != null) // if in selection mode
+			selectCurrent = getImageCoordinates(mouse); // for preview selection
 		repaint();
 	}
 	
@@ -250,9 +297,14 @@ public class ImagePanel extends JPanel
 	 */
 	public void areaSelectionStart()
 	{
+		parent.plotter.editLock = true;
+		parent.buttonAreaSelecting.setSelected(true);
+		
 		select = new GeneralPath();
 		selecting = true;
 		selected = false;
+		
+		parent.plotter.editLock = false;
 	}
 
 	/** Finalizes the current selection, thereby
@@ -263,7 +315,6 @@ public class ImagePanel extends JPanel
 	{
 		areaSelectionCancel();		
 		selected = true;
-		repaint();
 	}
 	
 	/** Disables selection mode; Terminates the current selection 
@@ -273,6 +324,9 @@ public class ImagePanel extends JPanel
 	 */
 	public void areaSelectionCancel()
 	{
+		parent.plotter.editLock = true;
+		parent.buttonAreaSelecting.setSelected(false);
+		
 		if (select.getCurrentPoint() != null)
 			select.closePath();
 		selecting = false;
@@ -280,6 +334,8 @@ public class ImagePanel extends JPanel
 		selectStart = null;
 		selectCurrent = null;
 		repaint();
+		
+		parent.plotter.editLock = false;
 	}
 	
 	@Override
@@ -357,37 +413,10 @@ public class ImagePanel extends JPanel
 	 * @param select	the Shape representing the boundary of the selection
 	 */
 	public void showSelection (Graphics2D g2, Shape select)
-	{
-		// Set color mode
-		
+	{	
 		g2.setColor(xorBack);
-		g2.setXORMode(lineColor);
-		
-		// Initialize bounds of checking area
-
-		Rectangle bounds = select.getBounds();
-		int left = bounds.x;
-		int down = bounds.y;
-		int right = left + bounds.width;
-		int up = down + bounds.height;
-
-		// Iterate through grid selection and draw pixels, if within shape
-
-		for (int x = left; x < right; x++)
-		{
-			for (int y = down; y < up; y++)
-			{			
-				if (select.contains(x, y))
-				{								
-					Color color = GUI.getXORColor(getPixel(new Point(x, y)));
-					g2.setColor(color);
-					g2.fillRect(x, y, 1, 1); // draw pixel
-				}
-			}
-		}
-		
-		// Reset color mode
-		
-		g2.setPaintMode();
+		g2.setXORMode(lineColor); // Set color mode
+		g2.fill(select);
+		g2.setPaintMode(); // Reset color mode
 	}		
 }

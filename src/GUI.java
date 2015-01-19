@@ -140,6 +140,22 @@ public class GUI extends JFrame
 	public static final int PF_LAM_RGB = 14;
 	public static final int PF_LAM_SAT_EXTRAP = 15;
 	
+	// Area Labels
+	
+	public static final int AR_SRED = 3;
+	public static final int AR_SGREEN = 4;
+	public static final int AR_SBLUE = 5;
+	public static final int AR_LINRED = 6;
+	public static final int AR_LINGREEN = 7;
+	public static final int AR_LINBLUE = 8;
+	public static final int AR_X = 9;
+	public static final int AR_Y = 10;
+	public static final int AR_Z = 11;
+	public static final int AR_LAM_XYZ = 12;
+	public static final int AR_LAM_xy = 13;
+	public static final int AR_LAM_RGB = 14;
+	public static final int AR_LAM_SAT_EXTRAP = 15;
+	
 	// Measurement Panel Fields
 		
 	public static final Font fontCourier = new Font("Courier New", Font.PLAIN, 12);
@@ -152,8 +168,10 @@ public class GUI extends JFrame
 	public static final String[] labelsRuler = {"Length", "Pixels/length"};
 	public static final String[] labelsProfiler = {"Extrapolate", "Slope Lock", "Select All"};
 	public static final String[] labelsProfilerSpinner = {"x1", "y1", "x2", "y2"};
+	public static final String[] labelsArea = {"Pixels Selected"};
 	
-	public static final String[] profilerParams = {"x coord", "y coord", "t coord", "sRed", "sGreen", "sBlue", "linRed", "linGreen", "linBlue", "X", "Y", "Z", "\u03BB (XYZ fit)", "\u03BB (xyY fit)", "\u03BB (RGB fit)", "\u03BB (sat extrap)"};
+	public static final String[] labelsProfilerParams = {"x coord", "y coord", "t coord", "sRed", "sGreen", "sBlue", "linRed", "linGreen", "linBlue", "X", "Y", "Z", "\u03BB (XYZ fit)", "\u03BB (xyY fit)", "\u03BB (RGB fit)", "\u03BB (sat extrap)"};
+	public static final String[] labelsAreaParams = {"sRed", "sGreen", "sBlue", "linRed", "linGreen", "linBlue", "X", "Y", "Z", "\u03BB (XYZ fit)", "\u03BB (xyY fit)", "\u03BB (RGB fit)", "\u03BB (sat extrap)"};
 		
 	public JTextField[] fieldsImSpecs = new JTextField[labelsSpecs.length];
 	public JTextField[] fieldsAngle = new JTextField[labelsAngle.length];
@@ -162,8 +180,9 @@ public class GUI extends JFrame
 	public JSpinner[] spinnersProfiler = new JSpinner[4];
 	
 	public JRadioButton[] buttonsProfilerOptions = new JRadioButton[labelsProfiler.length];
-	public JToggleButton[] buttonsProfilerParams = new JToggleButton[profilerParams.length];
-	
+	public JToggleButton[] buttonsProfilerParams = new JToggleButton[labelsProfilerParams.length];
+	public JToggleButton[] buttonsAreaParams = new JToggleButton[labelsAreaParams.length];
+		
 	// Profiler Panel Fields
 	
 	public JTextField fieldPixelsPerSample;
@@ -190,7 +209,7 @@ public class GUI extends JFrame
 	// Control Panel
 	
 	public JButton[] buttonsMeasure = new JButton[measurePointCount.length];
-	public JToggleButton buttonLog;
+	public JToggleButton buttonLog, buttonAreaSelecting;
 	public JButton buttonMove;	
 	public int mode = 0;
 	
@@ -1009,9 +1028,9 @@ public class GUI extends JFrame
 		for (int i = 0; i < labelsProfilerSpinner.length; i++)
 			labels[i] = new JLabel(labelsProfilerSpinner[i]);
 		
-		for (int i = 0; i < profilerParams.length; i++)
+		for (int i = 0; i < labelsProfilerParams.length; i++)
 		{
-			buttonsProfilerParams[i] = new JToggleButton(profilerParams[i]);
+			buttonsProfilerParams[i] = new JToggleButton(labelsProfilerParams[i]);
 			buttonsProfilerParams[i].addActionListener(myActionListener);
 			buttonsProfilerParams[i].setMargin(new Insets(2,0,2,0));
 			buttonsProfilerParams[i].setBackground(Plotter.colors[i]);
@@ -1106,7 +1125,27 @@ public class GUI extends JFrame
 	
 	private JPanel getAreaPanel()
 	{
-		return new JPanel();
+		// Profiler panel
+		
+		JPanel area = new JPanel(new GridBagLayout());
+		GridBagConstraints c = new GridBagConstraints();
+		c.gridx = c.gridy = 0;
+		c.insets = new Insets(1,4,1,4);
+		c.fill = GridBagConstraints.NONE;
+		int cols = 7;
+		
+		// Buttons
+		
+		buttonAreaSelecting = new JToggleButton("Selecting Area");
+		buttonAreaSelecting.setSelected(false);
+		buttonAreaSelecting.addActionListener(myActionListener);
+		
+		gridBagAdd(area, c, 0, c.gridy, 2, GridBagConstraints.CENTER, buttonAreaSelecting);
+		
+		c.fill = GridBagConstraints.HORIZONTAL;
+		gridBagSeparator(area, c, 0, ++c.gridy, 2);				
+		
+		return area;
 	}
 	
 	public void clearTable()
@@ -1475,7 +1514,7 @@ public class GUI extends JFrame
 			// Count required columns			
 			int counter = 0;
 			
-			for (int i = 0; i < profilerParams.length; i++)
+			for (int i = 0; i < labelsProfilerParams.length; i++)
 				if (plotter.plotEnabled[i])
 					counter++;			
 			
@@ -1490,14 +1529,14 @@ public class GUI extends JFrame
 			int params[] = new int[counter];
 			counter = 0;
 			
-			for (int i = 0; i < profilerParams.length; i++)
+			for (int i = 0; i < labelsProfilerParams.length; i++)
 				if (plotter.plotEnabled[i])
 					params[counter++] = i;
 			
 			// Set Headers
 			
 			for (int i = 0; i < params.length; i++)
-				tableSet(profilerParams[params[i]], i);
+				tableSet(labelsProfilerParams[params[i]], i);
 			tableIncrement();
 			
 			// Iterate through data
@@ -1718,11 +1757,11 @@ public class GUI extends JFrame
 	public void setSelectAllProfiles(boolean selectAll)
 	{
 		plotter.editLock = true;
-		for (int i = PF_SRED; i < profilerParams.length; i++)
+		for (int i = PF_SRED; i < labelsProfilerParams.length; i++)
 		{
 			buttonsProfilerParams[i].setSelected(selectAll);
 			plotter.setPlotEnabled(i, selectAll);
-			System.out.println(profilerParams[i] + " - " + plotter.plotEnabled[i]);
+			System.out.println(labelsProfilerParams[i] + " - " + plotter.plotEnabled[i]);
 		}
 		plotter.editLock = false;
 		
@@ -1854,7 +1893,7 @@ public class GUI extends JFrame
 	{
 		fieldsRuler[RU_LENGTH].setText(Calc.precise12.format(length));
 		fieldsRuler[RU_SCALE].setText(Calc.precise12.format(ip.pixelsPerMM));
-	}		
+	}	
 	
 	public void displayColor(Color color, int[] rgb, double[] XYZ, double[] resultsXYZ, double[] resultsxy, double[] resultsRGB, double[] resultsSatExtrap)
 	{
@@ -2073,11 +2112,25 @@ public class GUI extends JFrame
 				JToggleButton button = (JToggleButton)parent;
 				if (button.equals(buttonLog))
 					isLogging = buttonLog.isSelected();
+				else if (button.equals(buttonAreaSelecting))
+				{
+					if (!plotter.editLock)
+					{
+						if (!button.isSelected())
+							ip.areaSelectionFinalize(); // Finalize area selection if this is unselected
+						else
+						{
+							plotter.editLock = true; 	// Force button unselected; can't start until you click
+							button.setSelected(false);
+							plotter.editLock = false;
+						}
+					}
+				}				
 				else
 				{
 					if (!plotter.editLock)
 					{
-						for (int i = 0; i < profilerParams.length; i++)
+						for (int i = 0; i < labelsProfilerParams.length; i++)
 						{
 							if (button.equals(buttonsProfilerParams[i]))
 							{							
@@ -2331,4 +2384,3 @@ public class GUI extends JFrame
 		return new Color(xorBack^xorFront^color.getRGB());
 	}
 }
-

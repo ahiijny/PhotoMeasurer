@@ -49,7 +49,7 @@ public class Plotter extends JPanel
 	 * First dataset are the t-values
 	 * Second dataset is empty
 	 * The rest is as specified by the constants in GUI */
-	public double[][] data = new double[GUI.profilerParams.length][1];		
+	public double[][] data = new double[GUI.labelsProfilerParams.length][1];		
 	public Color color;
 	
 	public Point p1 = new Point(0, 0);
@@ -68,9 +68,9 @@ public class Plotter extends JPanel
 	
 	public double hStep = 1;	
 	
-	public double[] vStep = new double[GUI.profilerParams.length]; // In screen pixels
-	public double[] vOffset = new double[GUI.profilerParams.length]; // In screen pixels
-	public boolean[] plotEnabled = new boolean[GUI.profilerParams.length]; // In screen pixels
+	public double[] vStep = new double[GUI.labelsProfilerParams.length]; // In screen pixels
+	public double[] vOffset = new double[GUI.labelsProfilerParams.length]; // In screen pixels
+	public boolean[] plotEnabled = new boolean[GUI.labelsProfilerParams.length]; // In screen pixels
 	public Insets insets = new Insets(2,4,2,4);
 	public Dimension plotSize = new Dimension(0, 0);
 	
@@ -277,7 +277,7 @@ public class Plotter extends JPanel
 		int n = getPointCount();		
 		double dt = T/n;
 		double[][] points = new double[n][2];
-		data = new double[GUI.profilerParams.length][n];
+		data = new double[GUI.labelsProfilerParams.length][n];
 		
 		recalcHStep(n);
 		
@@ -494,7 +494,7 @@ public class Plotter extends JPanel
 	public boolean isAllSelected()
 	{
 		boolean allSelected = true;
-		for (int i = GUI.PF_SRED; i < GUI.profilerParams.length; i++)
+		for (int i = GUI.PF_SRED; i < GUI.labelsProfilerParams.length; i++)
 			allSelected = allSelected && plotEnabled[i];
 		return allSelected;
 	}
