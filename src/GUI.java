@@ -1626,6 +1626,26 @@ public class GUI extends JFrame
 			if (counter + 3 > tableCols)
 				setTableColCount(counter + 3);
 			
+			// Supplementary data
+			
+			tableSet("n", 0);
+			tableSet("" + plotter.getAreaPointCount(), 1);
+			tableIncrement();
+			
+			double[] XYZ = plotter.getSummedXYZ();
+			
+			tableSet("sum X", 0);
+			tableSet("" + XYZ[0], 1);
+			tableIncrement();
+			
+			tableSet("sum Y", 0);
+			tableSet("" + XYZ[1], 1);
+			tableIncrement();
+			
+			tableSet("sum Z", 0);
+			tableSet("" + XYZ[2], 1);
+			tableIncrement();
+			
 			// Set Headers
 			
 			int col = 0;
@@ -1887,7 +1907,8 @@ public class GUI extends JFrame
 				this.path = path;
 				setTitle(title + " - " + path);				
 				refresh();
-				plotter.refresh();
+				if (mode != AREA)
+					plotter.refresh();
 			}
 		}		
 		manager.addKeyEventDispatcher(keyDispatcher); // return keyboard bindings
@@ -1924,7 +1945,7 @@ public class GUI extends JFrame
 		// File dialog prompt
 		
 		FileDialog fd = new FileDialog(this, "Save", FileDialog.SAVE);
-		fd.setFile(logger.path.getAbsolutePath());
+		fd.setFile(logger.path.getName());
 		fd.setVisible(true);		
 		String path = fd.getFile();
 		
