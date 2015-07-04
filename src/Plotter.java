@@ -87,6 +87,8 @@ public class Plotter extends JPanel
 	public Insets insets = new Insets(2,4,2,4);
 	public Dimension plotSize = new Dimension(0, 0);
 	
+	private int areaPointCount = 0;
+	
 	public Plotter(GUI parent) 
 	{
 		this.parent = parent;
@@ -320,6 +322,7 @@ public class Plotter extends JPanel
 			// Sample data
 			
 			int n = points.size();
+			areaPointCount = n;
 			for (int i = 0; i < n; i++)
 			{	
 				Point pt = points.get(i);
@@ -528,6 +531,11 @@ public class Plotter extends JPanel
 		}
 	}
 	
+	public int getAreaPointCount()
+	{
+		return areaPointCount;
+	}
+	
 	public double getHistogramValue(int mode, int index)
 	{
 		double result = 0;
@@ -689,9 +697,6 @@ public class Plotter extends JPanel
 				int lasty = (int)(vSteps[i] * area_data[i][0] + vOffset[i] + 0.5);
 				recalcHStep(area_data[i].length);
 				
-				System.out.println(area_data[i].length);
-				System.out.println(hStep + "," + vSteps[i]);
-				
 				for (int t = 0; t < area_data[i].length; t++)
 				{
 					int x1 = (int)(insets.left + (hStep * t) + 0.5);
@@ -704,6 +709,20 @@ public class Plotter extends JPanel
 				}			
 			}
 		}
+	}
+	
+	public double[] getSummedXYZ()
+	{
+		double[] XYZ = {0, 0, 0};
+		int n = area_data[GUI.AR_X].length;
+		for (int i = 0; i < n; i++)
+		{
+			double magnitude = getHistogramValue(GUI.AR_X, i);
+			XYZ[0] += magnitude * area_data[GUI.AR_X][i];
+			XYZ[1] += magnitude * area_data[GUI.AR_Y][i];
+			XYZ[2] += magnitude * area_data[GUI.AR_Z][i];
+		}
+		return XYZ;
 	}
 	
 	public boolean isAllSelected()
