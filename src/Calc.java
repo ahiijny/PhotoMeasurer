@@ -3,6 +3,7 @@ import java.awt.Point;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 
+//TODO: Measurements along a distored axis.
 public class Calc 
 {
 	public static final int RED = 0;
