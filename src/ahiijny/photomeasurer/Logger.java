@@ -1,3 +1,4 @@
+package ahiijny.photomeasurer;
 
 import java.io.BufferedWriter;
 import java.io.File;

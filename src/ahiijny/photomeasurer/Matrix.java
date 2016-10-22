@@ -1,3 +1,4 @@
+package ahiijny.photomeasurer;
 
 
 /** Static class that performs various matrix operations.

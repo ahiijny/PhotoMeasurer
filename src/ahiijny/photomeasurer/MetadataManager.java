@@ -1,3 +1,4 @@
+package ahiijny.photomeasurer;
 import java.awt.Dimension;
 import java.io.File;
 import java.io.IOException;
